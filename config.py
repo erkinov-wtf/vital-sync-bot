@@ -21,7 +21,7 @@ def load_env_file(path: str = ".env"):
 load_env_file()
 
 # --- Backend API Configuration ---
-BASE_URL = os.getenv('BASE_URL', 'http://localhost:8080/')
+BASE_URL = os.getenv('BASE_URL', 'http://vital-app:8080/')
 API_VERSION = os.getenv('API_VERSION', 'api/v1')
 API_TOKEN = os.getenv('API_TOKEN', 'YOUR_API_TOKEN')
 
