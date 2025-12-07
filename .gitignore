@@ -1,0 +1,5 @@
+.idea
+apidocs.json
+medical_assistant_session.session
+logs
+.env
