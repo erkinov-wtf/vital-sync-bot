@@ -1,0 +1,8 @@
+services:
+  ai500bot:
+    build: .
+    env_file:
+      - .env
+    ports:
+      - "8081:8081"
+    restart: unless-stopped

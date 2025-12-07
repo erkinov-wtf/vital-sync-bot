@@ -1,5 +1,5 @@
 .idea
 apidocs.json
-medical_assistant_session.session
+bot.session
 logs
 .env

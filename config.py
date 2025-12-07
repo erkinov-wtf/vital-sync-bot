@@ -29,7 +29,7 @@ API_TOKEN = os.getenv('API_TOKEN', 'YOUR_API_TOKEN')
 # Replace with your actual credentials from my.telegram.org
 API_ID = int(os.getenv('API_ID', '31709009'))
 API_HASH = os.getenv('API_HASH', 'cc83fff2aefcc684c1aa20df23b2b639')
-SESSION_NAME = os.getenv('SESSION_NAME', 'medical_assistant_session')
+SESSION_NAME = os.getenv('SESSION_NAME', 'bot')
 
 # --- Gemini Configuration ---
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY',)
