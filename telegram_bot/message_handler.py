@@ -75,17 +75,17 @@ async def handle_new_message(event, client):
 
         # --- 3. ROUTING: NEW SESSION TRIGGER ---
 
-        elif "check-in" in normalized_text or "hello" in normalized_text:
-            # Correct initialization: a dictionary
-            SESSION_STATE[lookup_key] = {'status': 'WAITING_CONSENT'}
-            await client.send_message(recipient,
-                                      "Welcome to the daily health check-in. Are you ready to begin? (Reply Yes/No)")
+        # elif "check-in" in normalized_text or "hello" in normalized_text: //TODO Future trigger phrases
+        #     # Correct initialization: a dictionary
+        #     SESSION_STATE[lookup_key] = {'status': 'WAITING_CONSENT'}
+        #     await client.send_message(recipient,
+        #                               "Welcome to the daily health check-in. Are you ready to begin? (Reply Yes/No)")
 
         # --- 4. ROUTING: DEFAULT MESSAGE ---
         else:
             if not current_state:
                 await client.send_message(recipient,
-                                          "I only handle daily health check-ins. Please reply 'Check-in' to start.")
+                                          "Currently you cannot start a session. Please wait until your automated check-in or contact your care team for assistance.")
 
 
 
