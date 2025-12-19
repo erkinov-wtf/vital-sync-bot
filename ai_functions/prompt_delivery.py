@@ -2,7 +2,7 @@ import asyncio
 import io
 from typing import Optional
 
-from ai_client.deepgram_client import synthesize_speech
+from ai_client.tts_client import synthesize_speech
 from telegram_bot.chat_actions import chat_action
 
 
