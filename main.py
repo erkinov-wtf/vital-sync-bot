@@ -6,6 +6,7 @@ import os
 import re
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlparse, parse_qs
 
 from telethon import TelegramClient, events
 from config import API_ID, API_HASH, SESSION_NAME
@@ -28,7 +29,7 @@ def _format_username(username: str):
     return username if username.startswith('@') else f"@{username}"
 
 
-async def send_checkin_for_patient_id(client, patient_id: str):
+async def send_checkin_for_patient_id(client, patient_id: str, delivery_mode: str = "text"):
     """
     Fetch patient full record, resolve Telegram username, and start the AI-driven check-in immediately.
     """
@@ -67,6 +68,7 @@ async def send_checkin_for_patient_id(client, patient_id: str):
             prior_checkins=checkins,
             vital_readings=vitals,
             intro_message=None,
+            delivery_mode=delivery_mode,
         )
     except Exception as e:
         return False, f"Failed to start AI session: {e}"
@@ -86,12 +88,17 @@ class CheckinTriggerHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(payload).encode())
 
     def do_POST(self):
-        match = UUID_PATH_RE.fullmatch(self.path)
+        parsed = urlparse(self.path)
+        match = UUID_PATH_RE.fullmatch(parsed.path)
         if not match:
             self._send_json(404, {"error": "Not found"})
             return
 
         patient_id = match.group(1)
+        params = parse_qs(parsed.query or "")
+        delivery_mode = (params.get("type", ["text"])[0] or "text").lower()
+        if delivery_mode not in ("text", "call"):
+            delivery_mode = "text"
 
         if not self.telethon_client or not self.event_loop:
             self._send_json(503, {"error": "Bot client not ready"})
@@ -99,7 +106,7 @@ class CheckinTriggerHandler(BaseHTTPRequestHandler):
 
         try:
             future = asyncio.run_coroutine_threadsafe(
-                send_checkin_for_patient_id(self.telethon_client, patient_id),
+                send_checkin_for_patient_id(self.telethon_client, patient_id, delivery_mode),
                 self.event_loop,
             )
             success, detail = future.result()
@@ -108,7 +115,7 @@ class CheckinTriggerHandler(BaseHTTPRequestHandler):
             return
 
         if success:
-            self._send_json(200, {"ok": True, "patient_id": patient_id, "username": detail})
+            self._send_json(200, {"ok": True, "patient_id": patient_id, "username": detail, "delivery_mode": delivery_mode})
         else:
             self._send_json(400, {"ok": False, "patient_id": patient_id, "error": detail})
 

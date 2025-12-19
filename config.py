@@ -40,6 +40,7 @@ GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
 DEEPGRAM_API_KEY = os.getenv('DEEPGRAM_API_KEY', '')
 # Balanced price/quality default; override if you prefer a different Deepgram model
 DEEPGRAM_MODEL = os.getenv('DEEPGRAM_MODEL', 'nova-2-general')
+DEEPGRAM_TTS_VOICE = os.getenv('DEEPGRAM_TTS_VOICE', 'aura-astrid-en')
 
 HEADERS = {
     'Authorization': f'Bearer {API_TOKEN}',

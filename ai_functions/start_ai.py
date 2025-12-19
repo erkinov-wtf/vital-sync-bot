@@ -4,6 +4,7 @@ import re
 from typing import Any, Dict, List, Optional
 
 from ai_client.llm_client import generate_ai_chat_response
+from ai_functions.prompt_delivery import send_prompt
 from telegram_bot.chat_actions import chat_action
 from api_client.patient_api import (
     add_checkin_questions,
@@ -115,6 +116,7 @@ async def start_ai_session(
     prior_checkins: Optional[List[Dict[str, Any]]] = None,
     vital_readings: Optional[List[Dict[str, Any]]] = None,
     intro_message: Optional[str] = None,
+    delivery_mode: str = "text",
 ):
     """Generate question set from Gemini with clinical context and start the Q&A loop."""
 
@@ -238,6 +240,7 @@ async def start_ai_session(
         "answers": [],
         "checkin_id": checkin_id,
         "patient_user_id": patient_user_id,
+        "delivery_mode": delivery_mode.lower() if delivery_mode else "text",
     }
 
     # Send intro (LLM-generated if not provided) and first question
@@ -247,8 +250,8 @@ async def start_ai_session(
     if questions:
         initial_question = questions[0].get("question", "")
         if intro_message:
-            await client.send_message(recipient, intro_message)
-        await client.send_message(recipient, initial_question)
+            await send_prompt(client, recipient, intro_message, delivery_mode)
+        await send_prompt(client, recipient, initial_question, delivery_mode)
     else:
         await client.send_message(recipient,
                                   "Unable to generate personalized questions for your check-in. Please try again later.")

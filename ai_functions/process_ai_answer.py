@@ -6,6 +6,7 @@ from ai_client.gemini_client import generate_ai_chat_response
 from api_client.patient_api import add_checkin_answers, end_checkin_session, update_checkin_analysis
 from models.state_manager import SESSION_STATE
 from telegram_bot.chat_actions import chat_action
+from ai_functions.prompt_delivery import send_prompt
 
 
 async def process_ai_answer(client, recipient, user_answer):
@@ -32,6 +33,7 @@ async def process_ai_answer(client, recipient, user_answer):
 
     checkin_id = session_data.get("checkin_id")
     patient_user_id = session_data.get("patient_user_id")
+    delivery_mode = session_data.get("delivery_mode", "text")
 
     # 2. Record the answer for the current question
     # This block executes if a question index exists and hasn't exceeded the list length
@@ -56,7 +58,7 @@ async def process_ai_answer(client, recipient, user_answer):
     # 3. Check if there is a next question to send
     next_idx = session_data.get("index", 0)
     if next_idx < len(questions):
-        await client.send_message(recipient, questions[next_idx].get("question", ""))
+        await send_prompt(client, recipient, questions[next_idx].get("question", ""), delivery_mode)
 
         # ✅ CRITICAL FIX: Save the updated session state to persist the index and answers
         # This prevents the loop from freezing on the second question.
@@ -184,6 +186,9 @@ async def process_ai_answer(client, recipient, user_answer):
     user_reply += "If anything changes or feels worse, message me right away."
 
     await client.send_message(recipient, user_reply.strip())
+    if (delivery_mode or "").lower() == "call":
+        # Send a voice version of the summary; fall back silently on TTS errors
+        await send_prompt(client, recipient, user_reply.strip(), delivery_mode, send_text_fallback=False)
 
     # 7. End the session with backend and cleanup
     if patient_user_id:
