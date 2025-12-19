@@ -31,30 +31,40 @@ def synthesize_speech(text: str) -> Tuple[Optional[bytes], Optional[str]]:
 def _hf_tts(text: str) -> Tuple[Optional[bytes], Optional[str]]:
     """
     Use Hugging Face Inference API to synthesize speech.
-    Default model: espnet/kan-bayashi_ljspeech_vits (English).
+    Tries the configured model, then a built-in fallback.
     """
-    url = f"https://api-inference.huggingface.co/models/{HF_TTS_MODEL}"
-    headers = {
-        "Authorization": f"Bearer {HF_TTS_TOKEN}",
-        "Accept": "audio/wav",
-        "Content-Type": "application/json",
-        # Inference API will queue/warm the model if needed
-        "X-Wait-For-Model": "true",
-    }
-    payload = {"inputs": text}
-    try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=60)
-        if resp.status_code == 503:
-            return None, "Hugging Face TTS model is loading. Please retry in a few seconds."
-        resp.raise_for_status()
-        content_type = resp.headers.get("Content-Type", "")
-        if "audio" in content_type:
-            return resp.content, None
-        # Some models may return JSON with error info
+    models = []
+    if HF_TTS_MODEL:
+        models.append(HF_TTS_MODEL)
+    # Built-in fallback to a public English TTS model
+    if "facebook/mms-tts-eng" not in models:
+        models.append("facebook/mms-tts-eng")
+
+    last_err = None
+    for model in models:
+        url = f"https://api-inference.huggingface.co/models/{model}"
+        headers = {
+            "Authorization": f"Bearer {HF_TTS_TOKEN}",
+            "Accept": "audio/wav",
+            "Content-Type": "application/json",
+            "X-Wait-For-Model": "true",
+        }
+        payload = {"inputs": text}
         try:
-            data = resp.json()
-            return None, data.get("error", "Hugging Face TTS returned non-audio response.")
-        except Exception:
-            return None, "Hugging Face TTS returned non-audio response."
-    except requests.exceptions.RequestException as e:
-        return None, f"Hugging Face TTS failed: {e}"
+            resp = requests.post(url, headers=headers, json=payload, timeout=60)
+            if resp.status_code == 503:
+                last_err = "Hugging Face TTS model is loading. Please retry."
+                continue
+            resp.raise_for_status()
+            content_type = resp.headers.get("Content-Type", "")
+            if "audio" in content_type:
+                return resp.content, None
+            try:
+                data = resp.json()
+                last_err = data.get("error", f"Hugging Face TTS returned non-audio response from {model}.")
+            except Exception:
+                last_err = f"Hugging Face TTS returned non-audio response from {model}."
+        except requests.exceptions.RequestException as e:
+            last_err = f"Hugging Face TTS failed for {model}: {e}"
+
+    return None, last_err or "Hugging Face TTS failed."
