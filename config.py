@@ -42,11 +42,6 @@ DEEPGRAM_API_KEY = os.getenv('DEEPGRAM_API_KEY', '')
 DEEPGRAM_MODEL = os.getenv('DEEPGRAM_MODEL', 'nova-2-general')
 DEEPGRAM_TTS_VOICE = os.getenv('DEEPGRAM_TTS_VOICE', 'aura-astrid-en')
 
-# --- HuggingFace TTS (free tier) ---
-HF_TTS_TOKEN = os.getenv('HF_TTS_TOKEN', '')
-# Default to a publicly-available English TTS model; override if needed
-HF_TTS_MODEL = os.getenv('HF_TTS_MODEL', 'facebook/mms-tts-eng')
-
 HEADERS = {
     'Authorization': f'Bearer {API_TOKEN}',
     'Content-Type': 'application/json'
