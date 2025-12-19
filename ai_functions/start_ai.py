@@ -4,6 +4,7 @@ import re
 from typing import Any, Dict, List, Optional
 
 from ai_client.llm_client import generate_ai_chat_response
+from telegram_bot.chat_actions import chat_action
 from api_client.patient_api import (
     add_checkin_questions,
     start_checkin_session,
@@ -167,12 +168,14 @@ async def start_ai_session(
     questions = []
     text = None
     try:
-        ai_response = generate_ai_chat_response(
-            system_instruction=system_instruction,
-            history=[],
-            new_message=json.dumps(payload),
-            patient_id=patient_data.ID,
-        )
+        async with chat_action(client, recipient, 'typing'):
+            ai_response = await asyncio.to_thread(
+                generate_ai_chat_response,
+                system_instruction,
+                [],
+                json.dumps(payload),
+                patient_data.ID,
+            )
 
         text = ai_response.get("text")
         cleaned_text = text

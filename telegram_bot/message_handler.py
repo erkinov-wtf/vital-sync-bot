@@ -11,6 +11,7 @@ from api_client.patient_api import get_patient_by_username, get_patient_by_id, s
 from models.state_manager import SESSION_STATE
 
 from telegram_bot.emergency_signal import has_emergency_signal
+from telegram_bot.chat_actions import chat_action
 
 
 def _is_voice_message(message) -> bool:
@@ -87,7 +88,8 @@ async def handle_new_message(event, client):
         elif state_value == 'IN_QNA':
             # Q&A path; enable STT for voice notes only during check-in
             if _is_voice_message(event.message):
-                transcript, err = await _transcribe_voice_message(event, client)
+                async with chat_action(client, recipient, 'record-audio'):
+                    transcript, err = await _transcribe_voice_message(event, client)
                 if err:
                     await client.send_message(recipient, err)
                     return

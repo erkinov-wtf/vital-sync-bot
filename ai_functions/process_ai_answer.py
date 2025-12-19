@@ -5,6 +5,7 @@ import re
 from ai_client.gemini_client import generate_ai_chat_response
 from api_client.patient_api import add_checkin_answers, end_checkin_session, update_checkin_analysis
 from models.state_manager import SESSION_STATE
+from telegram_bot.chat_actions import chat_action
 
 
 async def process_ai_answer(client, recipient, user_answer):
@@ -103,12 +104,14 @@ async def process_ai_answer(client, recipient, user_answer):
 
     # Call Gemini to generate the final summary JSON
     try:
-        res = generate_ai_chat_response(
-            system_instruction=summary_instruction,
-            history=[],
-            new_message=json.dumps(summary_payload),
-            patient_id=patient_data.ID,
-        )
+        async with chat_action(client, recipient, 'typing'):
+            res = await asyncio.to_thread(
+                generate_ai_chat_response,
+                summary_instruction,
+                [],
+                json.dumps(summary_payload),
+                patient_data.ID,
+            )
         summary_text = res.get("text")
         print(f"[AI CHAT DEBUG] Raw Summary Text: {summary_text[:200]}...")  # Keep for debugging
 
