@@ -36,6 +36,11 @@ GEMINI_API_KEY = os.getenv('GEMINI_API_KEY',)
 # --- Groq Configuration ---
 GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
 
+# --- Deepgram Configuration ---
+DEEPGRAM_API_KEY = os.getenv('DEEPGRAM_API_KEY', '')
+# Balanced price/quality default; override if you prefer a different Deepgram model
+DEEPGRAM_MODEL = os.getenv('DEEPGRAM_MODEL', 'nova-2-general')
+
 HEADERS = {
     'Authorization': f'Bearer {API_TOKEN}',
     'Content-Type': 'application/json'

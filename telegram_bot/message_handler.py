@@ -1,3 +1,9 @@
+import asyncio
+import io
+
+from telethon.tl.types import DocumentAttributeAudio
+
+from ai_client.deepgram_client import transcribe_audio_bytes
 from ai_functions.process_ai_answer import process_ai_answer
 from ai_functions.start_ai import start_ai_session
 from ai_functions.start_emergency import start_emergency_session
@@ -6,11 +12,41 @@ from models.state_manager import SESSION_STATE
 
 from telegram_bot.emergency_signal import has_emergency_signal
 
+
+def _is_voice_message(message) -> bool:
+    media = getattr(message, "media", None)
+    doc = getattr(media, "document", None)
+    if not doc:
+        return False
+    for attr in getattr(doc, "attributes", []) or []:
+        if isinstance(attr, DocumentAttributeAudio) and getattr(attr, "voice", False):
+            return True
+    return False
+
+
+async def _transcribe_voice_message(event, client):
+    """
+    Downloads a Telegram voice note and runs Deepgram STT.
+    Returns (text, error_message).
+    """
+    buf = io.BytesIO()
+    try:
+        await client.download_media(event.message, file=buf)
+    except Exception as e:
+        return None, f"Couldn't download the voice note ({e}). Please type your answer instead."
+
+    mime = getattr(getattr(event.message.media, "document", None), "mime_type", None) or "audio/ogg"
+    audio_bytes = buf.getvalue()
+
+    transcript, error = await asyncio.to_thread(transcribe_audio_bytes, audio_bytes, mime)
+    return transcript, error
+
+
 async def handle_new_message(event, client):
     """Listens for new messages and processes the user's response."""
 
-    if event.is_private and event.message.message:
-        text = event.message.message.strip()
+    if event.is_private and event.message:
+        text = event.message.message.strip() if event.message.message else ""
         recipient = event.chat_id
         lookup_key = str(recipient)
 
@@ -49,7 +85,23 @@ async def handle_new_message(event, client):
 
         # Check for IN_QNA, EMERGENCY, etc.
         elif state_value == 'IN_QNA':
-            # Strictly handles Q&A, ignoring emergency signals during check-in
+            # Q&A path; enable STT for voice notes only during check-in
+            if _is_voice_message(event.message):
+                transcript, err = await _transcribe_voice_message(event, client)
+                if err:
+                    await client.send_message(recipient, err)
+                    return
+                if transcript:
+                    text = transcript
+                else:
+                    await client.send_message(recipient,
+                                              "I couldn't understand that voice note. Please try again or reply with text.")
+                    return
+
+            if not text:
+                await client.send_message(recipient, "Please reply with your answer (text or voice).")
+                return
+
             print(f"[QNA] Continuing session for CHAT ID: {lookup_key}.")
             await process_ai_answer(client, recipient, text)
 
