@@ -13,14 +13,16 @@ from ai_client.deepgram_client import synthesize_speech as deepgram_tts
 
 def synthesize_speech(text: str) -> Tuple[Optional[bytes], Optional[str]]:
     """
-    Try Hugging Face TTS first (if HF_TTS_TOKEN is set), otherwise Deepgram TTS.
+    Use Hugging Face TTS if configured. Only if HF is NOT configured,
+    fall back to Deepgram TTS (for users who prefer that).
     Returns (audio_bytes, error_message).
     """
     if HF_TTS_TOKEN:
         audio, err = _hf_tts(text)
         if audio:
             return audio, None
-        # fall through to Deepgram if available
+        # If HF fails, do not fall back to Deepgram unless you remove HF_TTS_TOKEN.
+        return None, err or "Hugging Face TTS failed."
     if DEEPGRAM_API_KEY:
         return deepgram_tts(text)
     return None, "No TTS backend configured. Set HF_TTS_TOKEN (preferred) or DEEPGRAM_API_KEY."
@@ -36,6 +38,8 @@ def _hf_tts(text: str) -> Tuple[Optional[bytes], Optional[str]]:
         "Authorization": f"Bearer {HF_TTS_TOKEN}",
         "Accept": "audio/wav",
         "Content-Type": "application/json",
+        # Inference API will queue/warm the model if needed
+        "X-Wait-For-Model": "true",
     }
     payload = {"inputs": text}
     try:
