@@ -10,6 +10,13 @@ import requests
 from config import HF_TTS_MODEL, HF_TTS_TOKEN, DEEPGRAM_API_KEY
 from ai_client.deepgram_client import synthesize_speech as deepgram_tts
 
+# Public TTS fallbacks (ordered). All are English; adjust via HF_TTS_MODEL if needed.
+HF_FALLBACK_MODELS = [
+    "facebook/mms-tts-eng",
+    "espnet/kan-bayashi_ljspeech_fastspeech",
+    "espnet/kan-bayashi_ljspeech_vits",
+]
+
 
 def synthesize_speech(text: str) -> Tuple[Optional[bytes], Optional[str]]:
     """
@@ -36,9 +43,9 @@ def _hf_tts(text: str) -> Tuple[Optional[bytes], Optional[str]]:
     models = []
     if HF_TTS_MODEL:
         models.append(HF_TTS_MODEL)
-    # Built-in fallback to a public English TTS model
-    if "facebook/mms-tts-eng" not in models:
-        models.append("facebook/mms-tts-eng")
+    for m in HF_FALLBACK_MODELS:
+        if m not in models:
+            models.append(m)
 
     last_err = None
     for model in models:
@@ -52,8 +59,11 @@ def _hf_tts(text: str) -> Tuple[Optional[bytes], Optional[str]]:
         payload = {"inputs": text}
         try:
             resp = requests.post(url, headers=headers, json=payload, timeout=60)
-            if resp.status_code == 503:
-                last_err = "Hugging Face TTS model is loading. Please retry."
+            if resp.status_code in (503, 504):
+                last_err = f"Hugging Face TTS model {model} is loading. Please retry."
+                continue
+            if resp.status_code == 410:
+                last_err = f"Hugging Face TTS model {model} is unavailable (410). Trying next fallback."
                 continue
             resp.raise_for_status()
             content_type = resp.headers.get("Content-Type", "")
