@@ -68,19 +68,22 @@ def _install_handlers(stack: PyTgCalls):
         return
 
     async def _collect_frames(client: PyTgCalls, update):
-        if not isinstance(update, StreamFrames):
-            return
-        if update.direction != Direction.INCOMING:
-            return
-        if update.device != Device.MICROPHONE:
-            return
-        if update.chat_id not in _CAPTURE_ACTIVE:
-            return
-        buf = _CAPTURE_BUFFERS.setdefault(update.chat_id, [])
-        for frame in update.frames:
-            data = getattr(frame, "frame", None) or getattr(frame, "data", None)
-            if data:
-                buf.append(data)
+        try:
+            if not isinstance(update, StreamFrames):
+                return
+            if update.direction != Direction.INCOMING:
+                return
+            if update.device != Device.MICROPHONE:
+                return
+            if update.chat_id not in _CAPTURE_ACTIVE:
+                return
+            buf = _CAPTURE_BUFFERS.setdefault(update.chat_id, [])
+            for frame in update.frames:
+                data = getattr(frame, "frame", None) or getattr(frame, "data", None)
+                if data:
+                    buf.append(data)
+        except Exception as e:
+            print(f\"[CALL] Failed to collect frames: {e}\")
 
     async def _track_call_state(client: PyTgCalls, update):
         if not isinstance(update, ChatUpdate):
@@ -90,7 +93,7 @@ def _install_handlers(stack: PyTgCalls):
             _CAPTURE_ACTIVE.discard(update.chat_id)
             _CAPTURE_BUFFERS.pop(update.chat_id, None)
 
-    async def frame_filter(self, client: PyTgCalls, u):
+    async def frame_filter(self, client: PyTgCalls, u, *args):
         return isinstance(u, StreamFrames) and u.direction == Direction.INCOMING and u.device == Device.MICROPHONE
 
     frame_filter = filters.create(frame_filter)
