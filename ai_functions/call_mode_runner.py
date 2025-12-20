@@ -65,7 +65,7 @@ async def ask_via_call(username: str, text: str, listen_seconds: int = 10) -> Tu
     return None, data.get("error") or f"Call-service returned {resp.status_code}"
 
 
-async def run_call_qna(client, recipient, username: Optional[str], listen_seconds: int = 10):
+async def run_call_qna(client, recipient, username: Optional[str], listen_seconds: int = 7):
     """
     Drive the Q&A loop over an active call by repeatedly asking questions via
     the call-service and feeding transcripts into the existing process_ai_answer flow.
@@ -109,3 +109,21 @@ async def run_call_qna(client, recipient, username: Optional[str], listen_second
         fail_attempts = 0
         await process_ai_answer(client, chat_id, transcript)
         await asyncio.sleep(0.5)
+
+    # End call when flow is finished
+    await end_call_via_service(username)
+
+
+async def end_call_via_service(username: str) -> None:
+    """Tell the call-service to hang up the active call."""
+    if not username:
+        return
+
+    def _post():
+        return requests.post(_endpoint(username, "end"), timeout=10)
+
+    try:
+        resp = await asyncio.to_thread(_post)
+        _ = resp.text  # drain
+    except Exception:
+        return

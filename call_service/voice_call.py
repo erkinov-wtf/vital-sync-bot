@@ -314,6 +314,28 @@ async def shutdown_call_client():
             _CALL_CLIENT = None
 
 
+async def end_voice_call(username: str) -> Tuple[bool, str]:
+    """Hang up the active call with the given user, if any."""
+    client, stack = await _ensure_call_stack()
+    if not client or not stack:
+        return False, "Call client not ready."
+
+    handle = username if username.startswith("@") else f"@{username}"
+    chat_id = await _resolve_chat_id(client, handle)
+    if not chat_id:
+        return False, f"Could not resolve user {handle}"
+
+    try:
+        await stack.leave_call(chat_id)
+    except Exception as e:
+        return False, f"Failed to end call: {e}"
+
+    _ACTIVE_CALLS.discard(chat_id)
+    _CAPTURE_ACTIVE.discard(chat_id)
+    _CAPTURE_BUFFERS.pop(chat_id, None)
+    return True, handle
+
+
 async def play_prompt_over_call(username: str, text: str) -> Tuple[bool, Optional[str]]:
     """
     Placeholder: ensure call is active. Audio playback is skipped (TTS disabled).

@@ -17,13 +17,14 @@ if str(ROOT) not in sys.path:
 
 from call_service.voice_call import (
     ask_over_call,
+    end_voice_call,
     place_voice_call,
     play_prompt_over_call,
     set_event_loop,
     shutdown_call_client,
 )
 
-USERNAME_PATH_RE = re.compile(r"^/call/@?(?P<username>[A-Za-z0-9_]{3,32})(?P<action>/ask|/play)?$")
+USERNAME_PATH_RE = re.compile(r"^/call/@?(?P<username>[A-Za-z0-9_]{3,32})(?P<action>/ask|/play|/end)?$")
 
 
 class CallRequestHandler(BaseHTTPRequestHandler):
@@ -86,6 +87,17 @@ class CallRequestHandler(BaseHTTPRequestHandler):
                     self._send_json(200, {"ok": True, "username": username, "transcript": transcript})
                 else:
                     self._send_json(400, {"ok": False, "username": username, "error": detail or "No transcript"})
+                return
+            if action == "/end":
+                future = asyncio.run_coroutine_threadsafe(
+                    end_voice_call(username),
+                    self.event_loop,
+                )
+                success, detail = future.result(timeout=30)
+                if success:
+                    self._send_json(200, {"ok": True, "username": username})
+                else:
+                    self._send_json(400, {"ok": False, "username": username, "error": detail})
                 return
 
             # Default: start call
