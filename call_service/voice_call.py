@@ -9,10 +9,17 @@ from typing import Optional, Tuple
 from pyrogram import Client
 from pyrogram.raw import functions, types
 
-from config import API_ID, API_HASH, CALL_SESSION_NAME
+from config import API_HASH, API_ID, CALL_SESSION_NAME
 
 _CALL_CLIENT: Optional[Client] = None
-_CALL_LOCK = asyncio.Lock()
+_CALL_LOCK: Optional[asyncio.Lock] = None
+_CALL_LOOP: Optional[asyncio.AbstractEventLoop] = None
+
+
+def set_event_loop(loop: asyncio.AbstractEventLoop):
+    """Bind the call client to a dedicated event loop."""
+    global _CALL_LOOP
+    _CALL_LOOP = loop
 
 
 def _session_is_logged_in(path: Path) -> bool:
@@ -82,16 +89,27 @@ def _resolve_session_path(name: str) -> Optional[Path]:
     return None
 
 
+def _get_lock() -> asyncio.Lock:
+    global _CALL_LOCK
+    if _CALL_LOCK is None:
+        _CALL_LOCK = asyncio.Lock()
+    return _CALL_LOCK
+
+
 async def _ensure_call_client() -> Optional[Client]:
     """
     Lazily start a Pyrogram client for voice calls using a pre-authenticated session.
     The session file must already exist; we do not perform interactive login here.
     """
-    global _CALL_CLIENT
+    global _CALL_CLIENT, _CALL_LOOP
     if _CALL_CLIENT:
         return _CALL_CLIENT
 
-    async with _CALL_LOCK:
+    loop = _CALL_LOOP or asyncio.get_running_loop()
+    if _CALL_LOOP is None:
+        _CALL_LOOP = loop
+
+    async with _get_lock():
         if _CALL_CLIENT:
             return _CALL_CLIENT
 
@@ -100,7 +118,7 @@ async def _ensure_call_client() -> Optional[Client]:
             print("[CALL] No Pyrogram session file ready (set CALL_SESSION_NAME or run `python telegram_calls.py` to log in).")
             return None
 
-        client = Client(str(session_path), api_id=API_ID, api_hash=API_HASH)
+        client = Client(str(session_path), api_id=API_ID, api_hash=API_HASH, loop=_CALL_LOOP)
         try:
             await client.start()
             _CALL_CLIENT = client
@@ -155,3 +173,13 @@ async def place_voice_call(username: str) -> Tuple[bool, str]:
     except Exception as e:
         print(f"[CALL] Failed to start call to {handle}: {e}")
         return False, f"Failed to start call: {e}"
+
+
+async def shutdown_call_client():
+    """Clean up the Pyrogram client if it is running."""
+    global _CALL_CLIENT
+    if _CALL_CLIENT:
+        try:
+            await _CALL_CLIENT.stop()
+        finally:
+            _CALL_CLIENT = None

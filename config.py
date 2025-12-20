@@ -50,6 +50,7 @@ STT_TIMEOUT = int(os.getenv('STT_TIMEOUT', '90'))
 TTS_LANGUAGE = os.getenv('TTS_LANGUAGE', 'uz')
 
 CALL_SESSION_NAME = os.getenv('CALL_SESSION_NAME', 'interactive_call_session.session')
+CALL_SERVICE_URL = os.getenv('CALL_SERVICE_URL', 'http://localhost:8082')
 
 HEADERS = {
     'Authorization': f'Bearer {API_TOKEN}',

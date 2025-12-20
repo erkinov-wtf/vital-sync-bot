@@ -5,11 +5,13 @@ import json
 import os
 import re
 import threading
+from typing import Tuple
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
+import requests
 from telethon import TelegramClient, events
-from config import API_ID, API_HASH, SESSION_NAME
+from config import API_ID, API_HASH, SESSION_NAME, CALL_SERVICE_URL
 from ai_functions.start_ai import start_ai_session
 from api_client.patient_api import (
     get_patient_full_with_history,
@@ -17,7 +19,6 @@ from api_client.patient_api import (
     start_checkin_session,
 )
 from telegram_bot.message_handler import handle_new_message
-from telegram_bot.call_service import place_voice_call
 
 UUID_PATH_RE = re.compile(
     r"^/checkin/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"
@@ -28,6 +29,38 @@ def _format_username(username: str):
     if not username:
         return None
     return username if username.startswith('@') else f"@{username}"
+
+
+async def trigger_voice_call(username: str) -> Tuple[bool, str]:
+    """
+    Ask the dedicated call service to place a Telegram call to the user.
+    """
+    target = username.lstrip("@")
+    base = CALL_SERVICE_URL.rstrip("/")
+    endpoint = f"{base}/call/{target}"
+
+    def _make_request():
+        return requests.post(endpoint, timeout=20)
+
+    try:
+        response = await asyncio.to_thread(_make_request)
+    except Exception as exc:
+        return False, f"Call service unreachable: {exc}"
+
+    try:
+        payload = response.json()
+    except Exception:
+        payload = None
+
+    if response.status_code == 200 and payload and payload.get("ok"):
+        return True, payload.get("username", target)
+
+    error_message = None
+    if isinstance(payload, dict):
+        error_message = payload.get("error")
+    if not error_message:
+        error_message = f"Call service returned {response.status_code}"
+    return False, error_message
 
 
 async def send_checkin_for_patient_id(client, patient_id: str, delivery_mode: str = "text"):
@@ -45,7 +78,7 @@ async def send_checkin_for_patient_id(client, patient_id: str, delivery_mode: st
         return False, "Patient has no Telegram username"
 
     if delivery_mode == "call":
-        success, detail = await place_voice_call(username)
+        success, detail = await trigger_voice_call(username)
         if not success:
             return False, f"Failed to start Telegram call: {detail}"
         return True, username
