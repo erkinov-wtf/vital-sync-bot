@@ -90,7 +90,7 @@ def _install_handlers(stack: PyTgCalls):
             _CAPTURE_ACTIVE.discard(update.chat_id)
             _CAPTURE_BUFFERS.pop(update.chat_id, None)
 
-    def frame_filter(self, client: PyTgCalls, u):
+    async def frame_filter(client: PyTgCalls, u):
         return isinstance(u, StreamFrames) and u.direction == Direction.INCOMING and u.device == Device.MICROPHONE
 
     frame_filter = filters.create(frame_filter)
