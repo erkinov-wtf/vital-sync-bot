@@ -42,6 +42,12 @@ DEEPGRAM_API_KEY = os.getenv('DEEPGRAM_API_KEY', '')
 DEEPGRAM_MODEL = os.getenv('DEEPGRAM_MODEL', 'nova-2-general')
 DEEPGRAM_TTS_VOICE = os.getenv('DEEPGRAM_TTS_VOICE', 'aura-astrid-en')
 
+# --- Local STT Configuration (Whisper) ---
+STT_API_URL = os.getenv('STT_API_URL', '')  # e.g. http://<dgx-ip>:8000
+STT_API_KEY = os.getenv('STT_API_KEY', '')  # optional bearer token if your endpoint is secured
+STT_LANGUAGE = os.getenv('STT_LANGUAGE', 'uz')
+STT_TIMEOUT = int(os.getenv('STT_TIMEOUT', '90'))
+
 HEADERS = {
     'Authorization': f'Bearer {API_TOKEN}',
     'Content-Type': 'application/json'
