@@ -3,6 +3,10 @@ services:
     build: .
     env_file:
       - .env
+    volumes:
+      # Mount session files so interactive logins are picked up without rebuilding the image
+      - ./bot.session:/app/bot.session:ro
+      - ./interactive_call_session.session:/app/interactive_call_session.session:ro
     ports:
       - "8081:8081"
     restart: unless-stopped
