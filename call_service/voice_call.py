@@ -73,15 +73,19 @@ def _install_handlers(stack: PyTgCalls):
                 return
             if update.direction != Direction.INCOMING:
                 return
-            if update.device != Device.MICROPHONE:
+            if update.device not in (Device.MICROPHONE, Device.SPEAKER):
                 return
             if update.chat_id not in _CAPTURE_ACTIVE:
                 return
             buf = _CAPTURE_BUFFERS.setdefault(update.chat_id, [])
+            added = 0
             for frame in update.frames:
                 data = getattr(frame, "frame", None) or getattr(frame, "data", None)
                 if data:
                     buf.append(data)
+                    added += len(data)
+            if added:
+                print(f"[CALL] Collected {added} bytes from call {update.chat_id} (device={update.device.name})")
         except Exception as e:
             print(f"[CALL] Failed to collect frames: {e}")
 
@@ -93,8 +97,8 @@ def _install_handlers(stack: PyTgCalls):
             _CAPTURE_ACTIVE.discard(update.chat_id)
             _CAPTURE_BUFFERS.pop(update.chat_id, None)
 
-    async def frame_filter(self, client: PyTgCalls, u, *args):
-        return isinstance(u, StreamFrames) and u.direction == Direction.INCOMING and u.device == Device.MICROPHONE
+    async def frame_filter(self, client: PyTgCalls, u, *args, **kwargs):
+        return isinstance(u, StreamFrames) and u.direction == Direction.INCOMING and u.device in (Device.MICROPHONE, Device.SPEAKER)
 
     frame_filter = filters.create(frame_filter)
     stack.add_handler(_collect_frames, frame_filter)
@@ -354,6 +358,7 @@ async def capture_answer_over_call(username: str, listen_seconds: int = 15) -> T
         if not ok:
             return None, err or "Failed to start call."
 
+    print(f"[CALL] Starting capture window for {chat_id} (listen_seconds={listen_seconds})")
     _CAPTURE_BUFFERS[chat_id] = []
     _CAPTURE_ACTIVE.add(chat_id)
     try:
@@ -366,7 +371,9 @@ async def capture_answer_over_call(username: str, listen_seconds: int = 15) -> T
         return None, "No audio captured from call."
 
     wav_bytes = _pcm_to_wav_bytes(pcm)
+    print(f"[CALL] Captured {len(pcm)} bytes PCM from call {chat_id}; sending to STT")
     transcript, stt_err = await asyncio.to_thread(transcribe_audio_bytes, wav_bytes, "audio/wav")
+    print(f"[CALL] STT result for {chat_id}: transcript='{transcript}' err='{stt_err}'")
     return transcript, stt_err
 
 
