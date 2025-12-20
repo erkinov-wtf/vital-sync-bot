@@ -18,26 +18,19 @@ SESSION_FILE = f"{SESSION_NAME}.session"
 async def interactive_login(app: Client):
     await app.connect()
 
-    # Check if session file exists and is valid
+    # Check if session file exists and is valid; do not delete it automatically.
     if os.path.exists(SESSION_FILE):
         try:
             me = await app.get_me()
             if me:
-                print(f"✅ Already logged in as @{me.username or me.first_name} (id={me.id})")
+                print(f"✅ Already logged in as @{me.username or me.first_name} (id={me.id}) using {SESSION_FILE}")
                 return
         except Unauthorized:
-            print("⚠️ Existing session is invalid (AUTH_KEY_UNREGISTERED).")
-            print("🔄 Automatically cleaning up and starting fresh login...")
-            await app.disconnect()
-
-            # Delete the invalid session file
-            os.remove(SESSION_FILE)
-            print(f"✅ Deleted {SESSION_FILE}")
-
-            # Reconnect with clean state
-            await app.connect()
+            print("⚠️ Existing session appears invalid (AUTH_KEY_UNREGISTERED). Not deleting the file.")
+            print("   Please re-login manually if calls fail.")
+            return
     else:
-        print("📝 No existing session found. Starting fresh login...")
+        print("📝 No existing session found. Starting fresh login to create one...")
 
     # Interactive sign-in
     phone = input("Enter phone number (e.g. +998901234567): ").strip()
