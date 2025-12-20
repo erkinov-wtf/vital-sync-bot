@@ -14,16 +14,30 @@ _CALL_CLIENT: Optional[Client] = None
 _CALL_LOCK = asyncio.Lock()
 
 
-def _resolve_session_path(name: str) -> Path:
+def _resolve_session_path(name: str) -> Optional[Path]:
     """
-    Normalize session path; accept both bare names and .session paths.
+    Try multiple common session filenames so call flow works out-of-the-box.
     """
-    path = Path(name)
-    if path.suffix != ".session":
-        with_suffix = path.with_suffix(".session")
-        if with_suffix.exists():
-            path = with_suffix
-    return path
+    candidates = []
+    if name:
+        base = Path(name)
+        candidates.append(base)
+        if base.suffix != ".session":
+            candidates.append(base.with_suffix(".session"))
+
+    # Fallbacks that match the interactive login helper and common defaults
+    candidates.extend(
+        [
+            Path("interactive_call_session"),
+            Path("interactive_call_session.session"),
+            Path("call.session"),
+        ]
+    )
+
+    for path in candidates:
+        if path.exists():
+            return path
+    return None
 
 
 async def _ensure_call_client() -> Optional[Client]:
@@ -40,8 +54,8 @@ async def _ensure_call_client() -> Optional[Client]:
             return _CALL_CLIENT
 
         session_path = _resolve_session_path(CALL_SESSION_NAME or "call.session")
-        if not session_path.exists():
-            print(f"[CALL] Session file '{session_path}' not found. Skipping call initiation.")
+        if not session_path:
+            print("[CALL] No Pyrogram session file found (set CALL_SESSION_NAME or place interactive_call_session.session).")
             return None
 
         client = Client(str(session_path), api_id=API_ID, api_hash=API_HASH)

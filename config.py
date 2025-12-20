@@ -49,7 +49,7 @@ STT_LANGUAGE = os.getenv('STT_LANGUAGE', 'uz')
 STT_TIMEOUT = int(os.getenv('STT_TIMEOUT', '90'))
 TTS_LANGUAGE = os.getenv('TTS_LANGUAGE', 'uz')
 
-CALL_SESSION_NAME = os.getenv('CALL_SESSION_NAME', 'call.session')
+CALL_SESSION_NAME = os.getenv('CALL_SESSION_NAME', 'interactive_call_session.session')
 
 HEADERS = {
     'Authorization': f'Bearer {API_TOKEN}',
