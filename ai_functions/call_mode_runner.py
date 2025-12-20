@@ -74,7 +74,8 @@ async def run_call_qna(client, recipient, username: Optional[str], listen_second
     if not username:
         return
 
-    key = str(getattr(recipient, "user_id", None) or recipient)
+    chat_id = getattr(recipient, "user_id", None) or getattr(recipient, "chat_id", None) or recipient
+    key = str(chat_id)
     fail_attempts = 0
 
     while True:
@@ -93,12 +94,12 @@ async def run_call_qna(client, recipient, username: Optional[str], listen_second
         if not transcript:
             fail_attempts += 1
             try:
-                await client.send_message(recipient, "I couldn't hear you clearly. Please answer again.")
+                await client.send_message(chat_id, "I couldn't hear you clearly. Please answer again.")
             except Exception:
                 pass
             if fail_attempts >= 3:
                 try:
-                    await client.send_message(recipient, "I still can't hear you. Please answer here in chat.")
+                    await client.send_message(chat_id, "I still can't hear you. Please answer here in chat.")
                 except Exception:
                     pass
                 break
@@ -106,5 +107,5 @@ async def run_call_qna(client, recipient, username: Optional[str], listen_second
             continue
 
         fail_attempts = 0
-        await process_ai_answer(client, recipient, transcript)
+        await process_ai_answer(client, chat_id, transcript)
         await asyncio.sleep(0.5)
