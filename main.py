@@ -17,6 +17,7 @@ from api_client.patient_api import (
     start_checkin_session,
 )
 from telegram_bot.message_handler import handle_new_message
+from telegram_bot.call_service import place_voice_call
 
 UUID_PATH_RE = re.compile(
     r"^/checkin/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"
@@ -33,6 +34,7 @@ async def send_checkin_for_patient_id(client, patient_id: str, delivery_mode: st
     """
     Fetch patient full record, resolve Telegram username, and start the AI-driven check-in immediately.
     """
+    delivery_mode = (delivery_mode or "text").lower()
     result = await asyncio.to_thread(get_patient_full_with_history, patient_id)
     if not result:
         return False, "Patient not found or API error"
@@ -41,6 +43,12 @@ async def send_checkin_for_patient_id(client, patient_id: str, delivery_mode: st
     username = _format_username(getattr(patient_data.User, "TelegramUsername", ""))
     if not username:
         return False, "Patient has no Telegram username"
+
+    if delivery_mode == "call":
+        success, detail = await place_voice_call(username)
+        if not success:
+            return False, f"Failed to start Telegram call: {detail}"
+        return True, username
 
     # Resolve or start check-in session
     patient_user_id = patient_data.UserID
@@ -96,8 +104,9 @@ class CheckinTriggerHandler(BaseHTTPRequestHandler):
 
         patient_id = match.group(1)
         params = parse_qs(parsed.query or "")
-        # Call mode is not supported in this service; normalize to text always
-        delivery_mode = "text"
+        delivery_mode = (params.get("type", ["text"])[0] or "text").lower()
+        if delivery_mode not in ("text", "call"):
+            delivery_mode = "text"
 
         if not self.telethon_client or not self.event_loop:
             self._send_json(503, {"error": "Bot client not ready"})
