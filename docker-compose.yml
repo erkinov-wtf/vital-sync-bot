@@ -1,6 +1,7 @@
 services:
   ai500bot:
     build: .
+    container_name: ai500bot
     env_file:
       - .env
     environment:
