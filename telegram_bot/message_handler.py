@@ -3,7 +3,7 @@ import io
 
 from telethon.tl.types import DocumentAttributeAudio
 
-from ai_client.deepgram_client import transcribe_audio_bytes
+from ai_client.stt_client import transcribe_audio_bytes
 from ai_functions.process_ai_answer import process_ai_answer
 from ai_functions.start_ai import start_ai_session
 from ai_functions.start_emergency import start_emergency_session
