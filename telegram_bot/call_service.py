@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import os
 import random
+import sqlite3
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -12,6 +13,28 @@ from config import API_ID, API_HASH, CALL_SESSION_NAME
 
 _CALL_CLIENT: Optional[Client] = None
 _CALL_LOCK = asyncio.Lock()
+
+
+def _session_is_logged_in(path: Path) -> bool:
+    """
+    Ensure the session file is an authenticated Pyrogram user session.
+    If user_id is missing (or the session is for a bot), Pyrogram will prompt
+    for credentials, which breaks non-interactive containers.
+    """
+    conn = None
+    try:
+        conn = sqlite3.connect(path)
+        cur = conn.cursor()
+        cur.execute("SELECT user_id, is_bot FROM sessions LIMIT 1")
+        row = cur.fetchone()
+        return bool(row and row[0] and not row[1])
+    except Exception:
+        return False
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 def _resolve_session_path(name: str) -> Optional[Path]:
@@ -45,9 +68,17 @@ def _resolve_session_path(name: str) -> Optional[Path]:
         ]
     )
 
+    seen = set()
     for path in candidates:
-        if valid(path):
-            return path
+        if path in seen:
+            continue
+        seen.add(path)
+        if not valid(path):
+            continue
+        if not _session_is_logged_in(path):
+            print(f"[CALL] Session file {path} exists but is not logged in. Run `python telegram_calls.py` to create it.")
+            continue
+        return path
     return None
 
 
@@ -66,14 +97,14 @@ async def _ensure_call_client() -> Optional[Client]:
 
         session_path = _resolve_session_path(CALL_SESSION_NAME or "call.session")
         if not session_path:
-            print("[CALL] No Pyrogram session file found (set CALL_SESSION_NAME or place interactive_call_session.session).")
+            print("[CALL] No Pyrogram session file ready (set CALL_SESSION_NAME or run `python telegram_calls.py` to log in).")
             return None
 
         client = Client(str(session_path), api_id=API_ID, api_hash=API_HASH)
         try:
             await client.start()
             _CALL_CLIENT = client
-            print("[CALL] Pyrogram client started for voice calls.")
+            print(f"[CALL] Pyrogram client started for voice calls using session: {session_path}")
             return _CALL_CLIENT
         except Exception as e:
             print(f"[CALL] Failed to start Pyrogram client: {e}")
