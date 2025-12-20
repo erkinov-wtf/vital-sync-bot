@@ -6,8 +6,15 @@ needed for placing voice calls. Run inside the call_service container:
 """
 
 import asyncio
+import sys
+from pathlib import Path
 
 from pyrogram import Client
+
+# Ensure project root is on sys.path so we can import config when run as a script.
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from config import API_ID, API_HASH, CALL_SESSION_NAME
 
