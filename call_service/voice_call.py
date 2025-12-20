@@ -116,6 +116,7 @@ async def _ensure_call_client() -> Optional[Client]:
             print(f"[CALL] No Pyrogram session file ready (checked name '{CALL_SESSION_NAME or 'call.session'}'). "
                   "Set CALL_SESSION_NAME to a valid Pyrogram user session path and ensure it is mounted.")
             return None
+        print(f"[CALL] Using session file: {session_path}")
 
         # Client uses the current running loop; this coroutine must be scheduled on the target loop.
         client = Client(str(session_path), api_id=API_ID, api_hash=API_HASH)
