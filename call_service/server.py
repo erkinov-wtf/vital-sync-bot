@@ -2,11 +2,18 @@ import asyncio
 import json
 import os
 import re
+import sys
 import threading
 from concurrent.futures import TimeoutError
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse
+from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
+
+# Ensure the project root is on sys.path so the package can be imported
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from call_service.voice_call import place_voice_call, set_event_loop, shutdown_call_client
 
