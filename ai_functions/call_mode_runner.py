@@ -51,7 +51,7 @@ async def ask_via_call(username: str, text: str, listen_seconds: int = 10) -> Tu
         return requests.post(
             _endpoint(username, "ask"),
             json={"text": text, "listen_seconds": listen_seconds},
-            timeout=listen_seconds + 60,
+            timeout=listen_seconds + 90,
         )
 
     try:

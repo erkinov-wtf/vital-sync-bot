@@ -81,7 +81,7 @@ class CallRequestHandler(BaseHTTPRequestHandler):
                     ask_over_call(username, text, listen_seconds),
                     self.event_loop,
                 )
-                transcript, detail = future.result(timeout=90)
+                transcript, detail = future.result(timeout=120)
                 if transcript:
                     self._send_json(200, {"ok": True, "username": username, "transcript": transcript})
                 else:

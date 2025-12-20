@@ -16,11 +16,10 @@ if not hasattr(py_errors, "GroupcallForbidden"):
             super().__init__("GROUPCALL_FORBIDDEN", "Group call is forbidden")
     py_errors.GroupcallForbidden = GroupcallForbidden
 
-from pytgcalls import PyTgCalls, filters
+from pytgcalls import PyTgCalls
 from pytgcalls.types import CallConfig, Direction, Device, StreamFrames, ChatUpdate, RecordStream
 
 from ai_client.stt_client import transcribe_audio_bytes
-from ai_client.tts_client import synthesize_speech
 from config import API_HASH, API_ID, CALL_SESSION_NAME
 
 _CALL_CLIENT: Optional[Client] = None
@@ -97,11 +96,7 @@ def _install_handlers(stack: PyTgCalls):
             _CAPTURE_ACTIVE.discard(update.chat_id)
             _CAPTURE_BUFFERS.pop(update.chat_id, None)
 
-    async def frame_filter(self, client: PyTgCalls, u, *args, **kwargs):
-        return isinstance(u, StreamFrames) and u.direction == Direction.INCOMING and u.device in (Device.MICROPHONE, Device.SPEAKER)
-
-    frame_filter = filters.create(frame_filter)
-    stack.add_handler(_collect_frames, frame_filter)
+    stack.add_handler(_collect_frames)
     stack.add_handler(_track_call_state)
     _HANDLERS_INSTALLED = True
 
@@ -321,11 +316,8 @@ async def shutdown_call_client():
 
 async def play_prompt_over_call(username: str, text: str) -> Tuple[bool, Optional[str]]:
     """
-    Convert text to speech and stream it into the active call with the user.
+    Placeholder: ensure call is active. Audio playback is skipped (TTS disabled).
     """
-    if not text:
-        return False, "No text to play."
-
     client, stack = await _ensure_call_stack()
     if not client or not stack:
         return False, "Call client not ready."
@@ -339,16 +331,12 @@ async def play_prompt_over_call(username: str, text: str) -> Tuple[bool, Optiona
     if not ok:
         return False, err_detail or "Failed to ensure active call."
 
-    audio_bytes, tts_err = synthesize_speech(text)
-    if not audio_bytes:
-        return False, tts_err or "TTS failed."
-
     try:
-        print(f"[CALL] Playing prompt over call {chat_id}: '{text[:60]}'...")
-        await _play_audio(chat_id, audio_bytes, stack)
         await _ensure_recording(chat_id, stack)
+        print(f"[CALL] Call active for {chat_id}; skipping audio playback (TTS disabled).")
         return True, None
     except Exception as e:
+        print(f"[CALL] Failed to play prompt over call {chat_id}: {e}")
         return False, str(e)
 
 
@@ -395,14 +383,11 @@ async def capture_answer_over_call(username: str, listen_seconds: int = 15) -> T
 
 async def ask_over_call(username: str, text: str, listen_seconds: int = 15) -> Tuple[Optional[str], Optional[str]]:
     """
-    Play the given prompt over the call and return the transcribed response.
+    Ensure call is active, then listen and transcribe the response.
     """
     print(f"[CALL] ask_over_call -> prompt='{text[:80]}', listen_seconds={listen_seconds}")
     ok, err = await play_prompt_over_call(username, text)
     if not ok:
         return None, err
 
-    # Give the prompt a moment to finish before listening; the incoming stream
-    # only captures the remote side, so overlap should be minimal.
-    await asyncio.sleep(0.5)
     return await capture_answer_over_call(username, listen_seconds)
