@@ -7,11 +7,13 @@ services:
       CALL_SERVICE_URL: http://call_service:8082
     volumes:
       # Mount session files so interactive logins are picked up without rebuilding the image
-      - ./bot.session:/app/bot.session:ro
-      - ./interactive_call_session.session:/app/interactive_call_session.session:ro
+      - ./bot.session:/app/bot.session
+      - ./interactive_call_session.session:/app/interactive_call_session.session
     ports:
       - "127.0.0.1:8081:8081"
     restart: unless-stopped
+    networks:
+      - lumipass-net
 
   call_service:
     build: .
@@ -23,8 +25,14 @@ services:
       CALL_SERVICE_PORT: 8082
       CALL_SESSION_NAME: /app/interactive_call_session.session
     volumes:
-      - ./interactive_call_session.session:/app/interactive_call_session.session:ro
+      - ./interactive_call_session.session:/app/interactive_call_session.session
     command: ["python", "-m", "call_service.server"]
     ports:
       - "127.0.0.1:8082:8082"
     restart: unless-stopped
+    networks:
+      - lumipass-net
+
+networks:
+  lumipass-net:
+    external: true
