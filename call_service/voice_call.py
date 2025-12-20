@@ -83,7 +83,7 @@ def _install_handlers(stack: PyTgCalls):
                 if data:
                     buf.append(data)
         except Exception as e:
-            print(f\"[CALL] Failed to collect frames: {e}\")
+            print(f"[CALL] Failed to collect frames: {e}")
 
     async def _track_call_state(client: PyTgCalls, update):
         if not isinstance(update, ChatUpdate):
