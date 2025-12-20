@@ -77,11 +77,11 @@ async def send_checkin_for_patient_id(client, patient_id: str, delivery_mode: st
     if not username:
         return False, "Patient has no Telegram username"
 
+    # If call mode, trigger the call but still proceed with the chat-based Q&A flow
     if delivery_mode == "call":
         success, detail = await trigger_voice_call(username)
         if not success:
             return False, f"Failed to start Telegram call: {detail}"
-        return True, username
 
     # Resolve or start check-in session
     patient_user_id = patient_data.UserID

@@ -33,8 +33,7 @@ async def process_ai_answer(client, recipient, user_answer):
 
     checkin_id = session_data.get("checkin_id")
     patient_user_id = session_data.get("patient_user_id")
-    # Call mode not supported; keep text delivery
-    delivery_mode = "text"
+    delivery_mode = (session_data.get("delivery_mode") or "text").lower()
 
     # 2. Record the answer for the current question
     # This block executes if a question index exists and hasn't exceeded the list length

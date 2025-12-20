@@ -14,12 +14,15 @@ async def send_prompt(
     *,
     send_text_fallback: bool = True,
 ) -> None:
-    """Send a prompt as text. Call mode was removed in this service."""
+    """
+    Send the prompt. For now both text and call modes deliver via chat text
+    (voice/TTS to be added later).
+    """
     if not text:
         return
 
     mode = (delivery_mode or "text").lower()
-    # Call mode removed; always send text
+    # Call mode currently behaves like text: just send the message.
     async with chat_action(client, recipient, "typing"):
         await client.send_message(recipient, text)
     return

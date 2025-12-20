@@ -120,8 +120,7 @@ async def start_ai_session(
 ):
     """Generate question set from Gemini with clinical context and start the Q&A loop."""
 
-    # Call mode is not supported in this service; normalize to text
-    delivery_mode = "text"
+    delivery_mode = (delivery_mode or "text").lower()
 
     patient_data = patient
     meds = patient_data.CurrentMedications.medications if patient_data.CurrentMedications else []
