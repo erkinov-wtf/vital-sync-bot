@@ -73,7 +73,7 @@ def _generate_intro_message(patient_data: PatientData) -> str:
     """Generate a brief, friendly intro message via LLM."""
     system_instruction = (
         "You are a concise, friendly clinical check-in bot. "
-        "You write one short opening line to start a safety check-in."
+        "You write one short opening line to start a safety check-in in Uzbek."
     )
     user_payload = {
         "patient_name": f"{patient_data.User.FirstName} {patient_data.User.LastName}".strip(),
@@ -81,7 +81,7 @@ def _generate_intro_message(patient_data: PatientData) -> str:
         "condition_summary": patient_data.ConditionSummary,
     }
     instruction = (
-        "Write one short sentence to start the check-in. "
+        "Write one short sentence in Uzbek to start the check-in. "
         "Include the patient's first name if provided. "
         "Say this is a quick safety check and ask them to answer briefly. "
         "No multiple sentences, no bullet points, no code fences."
@@ -100,10 +100,10 @@ def _generate_intro_message(patient_data: PatientData) -> str:
             text = text.split("\n", 1)[-1]
             if text.endswith("```"):
                 text = text[:-3]
-        return text.strip() or "Let's start your quick check-in. Please answer briefly to keep you safe."
+        return text.strip() or "Keling, tezkor tekshiruvni boshlaymiz. Iltimos, xavfsizlik uchun qisqa javob bering."
     except Exception as e:
         print(f"[INTRO] Error generating intro: {e}")
-        return "Let's start your quick check-in. Please answer briefly to keep you safe."
+        return "Keling, tezkor tekshiruvni boshlaymiz. Iltimos, xavfsizlik uchun qisqa javob bering."
 
 
 async def start_ai_session(
@@ -133,7 +133,8 @@ async def start_ai_session(
         "You are a safety-first, clinically aware health check-in agent. "
         "Generate concise, high-yield questions using the provided patient context. "
         "Always prioritize red-flag symptoms and medication adherence, keep the list focused (5-10 questions), "
-        "and keep each question brief, single-topic, and free of greetings or names."
+        "and keep each question brief, single-topic, and free of greetings or names. "
+        "All question text must be written in Uzbek while keeping category labels in English."
     )
 
     user_data = {
@@ -161,8 +162,8 @@ async def start_ai_session(
         "Using user_data, produce 5-10 short questions that: "
         "1) ask the most safety-critical item first (breathing, chest pain, bleeding, neuro symptoms); "
         "2) cover current symptoms, vitals, med adherence, wound/issues if post-op, and overall well-being; "
-        "3) contain only the question text (no greetings, no names, no pleasantries). "
-        "Return a single JSON object with key check_in_questions. Each item must have category and question. "
+        "3) contain only the question text (no greetings, no names, no pleasantries) written in Uzbek. "
+        "Return a single JSON object with key check_in_questions. Each item must have category (English) and question (Uzbek). "
         "Do not include explanations or markdown."
     )
     payload = {"user_data": user_data, "instruction": instruction}

@@ -89,18 +89,25 @@ async def process_ai_answer(client, recipient, user_answer):
     summary_instruction = (
         "You are a clinical AI assistant creating a very short check-in note. "
         "Compare the patient's self-reported answers with their profile. "
-        "Return a single strict JSON object with: "
-        "overall (1-2 short sentences, max ~240 chars) and next_steps (an array of 2-3 concise bullets, each max ~120 chars). "
+        "Produce two outputs: a patient-facing summary in Uzbek and a clinician-facing summary in English. "
+        "Return one strict JSON object with patient_summary (overall_uz: 1-2 short sentences, max ~240 chars, Uzbek, no names; next_steps_uz: array of 2-3 concise bullets, each max ~120 chars, Uzbek) "
+        "and clinician_summary (overall_en: 1-2 short sentences, max ~240 chars, English; next_steps_en: array of 2-3 concise bullets, each max ~120 chars, English). "
         "Focus only on safety and immediate care steps. No markdown, no prose outside JSON."
     )
 
     summary_payload = {
         "patient_profile": profile,
         "patient_answers": {"answers": session_data["answers"]},
-        "instruction": "Return only concise content. Keep it brief.",
+        "instruction": "Return only concise content. Keep it brief. Patient-facing text must be Uzbek; clinician text must be English.",
         "output_format": {
-            "overall": "",
-            "next_steps": [],
+            "patient_summary": {
+                "overall_uz": "",
+                "next_steps_uz": [],
+            },
+            "clinician_summary": {
+                "overall_en": "",
+                "next_steps_en": [],
+            },
         },
     }
 
@@ -130,13 +137,45 @@ async def process_ai_answer(client, recipient, user_answer):
         # Use a fallback summary to avoid crashing the submit step
         summary_json = {}
 
-    # 5. Submit data to the backend API (moved up before sending final message)
-    # 6. Format and send the concise summary to the patient
-    overall = summary_json.get('overall') or "Check-in recorded. No urgent issues flagged."
-    steps = summary_json.get('next_steps') or []
-    if isinstance(steps, str):
-        steps = [steps]
-    steps = [s.strip() for s in steps if s and isinstance(s, str)]
+    patient_summary = summary_json.get("patient_summary") or {}
+    clinician_summary = summary_json.get("clinician_summary") or {}
+
+    patient_overall = (
+        patient_summary.get("overall_uz")
+        or summary_json.get("overall_uz")
+        or summary_json.get("overall")
+    )
+    patient_steps = (
+        patient_summary.get("next_steps_uz")
+        or summary_json.get("next_steps_uz")
+        or summary_json.get("next_steps")
+        or []
+    )
+
+    clinician_overall = (
+        clinician_summary.get("overall_en")
+        or summary_json.get("overall_en")
+        or summary_json.get("overall")
+        or patient_overall
+    )
+    clinician_steps = (
+        clinician_summary.get("next_steps_en")
+        or summary_json.get("next_steps_en")
+        or summary_json.get("next_steps")
+        or patient_steps
+    )
+
+    default_patient_overall = "Tekshiruv qayd etildi. Hozircha xavotirli holat aniqlanmadi."
+    patient_overall = patient_overall or default_patient_overall
+    clinician_overall = clinician_overall or "Check-in recorded. No urgent issues flagged."
+
+    if isinstance(patient_steps, str):
+        patient_steps = [patient_steps]
+    if isinstance(clinician_steps, str):
+        clinician_steps = [clinician_steps]
+
+    patient_steps = [s.strip() for s in patient_steps if s and isinstance(s, str)]
+    clinician_steps = [s.strip() for s in clinician_steps if s and isinstance(s, str)]
 
     # Risk categorization for user tone and backend payload
     severity_map = {
@@ -164,26 +203,25 @@ async def process_ai_answer(client, recipient, user_answer):
             return ""
         t = text
         if name:
-            t = re.sub(re.escape(name), "you", t, flags=re.IGNORECASE)
-        t = re.sub(r"\bpatient\b", "you", t, flags=re.IGNORECASE)
+            t = re.sub(re.escape(name), "siz", t, flags=re.IGNORECASE)
         return t
 
-    summary_line = personalize(overall)
+    summary_line = personalize(patient_overall)
     if len(summary_line) > 220:
         summary_line = summary_line[:217] + "..."
 
-    user_reply = f"{status_emoji} Thanks for checking in{', ' + name if name else ''}.\n\n"
-    user_reply += f"I noted: {summary_line}\n"
+    user_reply = f"{status_emoji} Tekshiruv uchun rahmat{', ' + name if name else ''}.\n\n"
+    user_reply += f"Qayd etdim: {summary_line}\n"
 
-    personalized_steps = [personalize(s) for s in steps if isinstance(s, str)]
+    personalized_steps = [personalize(s) for s in patient_steps if isinstance(s, str)]
     if personalized_steps:
-        user_reply += "\nPlease do these next:\n"
+        user_reply += "\nKeyingi amallar:\n"
         for step in personalized_steps[:3]:
             user_reply += f"- {step}\n"
     else:
-        user_reply += "\nNo extra steps right now. Keep following your plan.\n"
+        user_reply += "\nHozircha qo'shimcha qadamlar yo'q. Rejangizga rioya qiling.\n"
 
-    user_reply += "If anything changes or feels worse, message me right away."
+    user_reply += "Holatingiz o'zgarsa yoki yomonlashsa, darhol yozing."
 
     await client.send_message(recipient, user_reply.strip())
     if (delivery_mode or "").lower() == "call":
@@ -197,8 +235,8 @@ async def process_ai_answer(client, recipient, user_answer):
     # 8. Send analysis payload to backend (after completion)
     analysis_payload = {
         "ai_analysis": {
-            "summary": overall,
-            "next_steps": steps,
+            "summary": clinician_overall,
+            "next_steps": clinician_steps,
         },
         "medical_status": medical_status,
         "risk_score": risk_score,
@@ -206,10 +244,10 @@ async def process_ai_answer(client, recipient, user_answer):
             "severity": severity,
             "alert_type": "VITAL_ABNORMAL",
             "title": "Automated check-in analysis",
-            "message": overall,
+            "message": clinician_overall,
             "details": {
-                "overall": overall,
-                "next_steps": steps,
+                "overall": clinician_overall,
+                "next_steps": clinician_steps,
             },
         },
     }
