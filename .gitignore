@@ -5,3 +5,4 @@ logs
 .env
 interactive_call_session.session
 interactive_call_session.session.session
+call_sessions/
