@@ -4,5 +4,5 @@ google-genai>=0.5.2
 gTTS>=2.5.1
 pyrogram>=2.0.106
 tgcrypto>=1.2.5
-pytgcalls==2.2.8
+py-tgcalls==2.2.8
 ntgcalls==2.0.6
