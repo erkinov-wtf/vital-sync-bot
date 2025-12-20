@@ -7,7 +7,15 @@ import wave
 from pathlib import Path
 from typing import Dict, Optional, Set, Tuple
 
-from pyrogram import Client
+from pyrogram import Client, errors as py_errors
+
+# PyTgCalls expects a legacy error class; add a shim if the installed Pyrogram omits it.
+if not hasattr(py_errors, "GroupcallForbidden"):
+    class GroupcallForbidden(py_errors.RPCError):
+        def __init__(self, *args, **kwargs):
+            super().__init__("GROUPCALL_FORBIDDEN", "Group call is forbidden")
+    py_errors.GroupcallForbidden = GroupcallForbidden
+
 from pytgcalls import PyTgCalls, filters
 from pytgcalls.types import CallConfig, Direction, Device, StreamFrames, ChatUpdate
 
