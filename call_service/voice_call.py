@@ -333,6 +333,7 @@ async def play_prompt_over_call(username: str, text: str) -> Tuple[bool, Optiona
         return False, tts_err or "TTS failed."
 
     try:
+        print(f"[CALL] Playing prompt over call {chat_id}: '{text[:60]}'...")
         await _play_audio(chat_id, audio_bytes, stack)
         return True, None
     except Exception as e:
@@ -381,6 +382,7 @@ async def ask_over_call(username: str, text: str, listen_seconds: int = 15) -> T
     """
     Play the given prompt over the call and return the transcribed response.
     """
+    print(f"[CALL] ask_over_call -> prompt='{text[:80]}', listen_seconds={listen_seconds}")
     ok, err = await play_prompt_over_call(username, text)
     if not ok:
         return None, err

@@ -61,6 +61,7 @@ class CallRequestHandler(BaseHTTPRequestHandler):
         try:
             if action == "/play":
                 text = payload.get("text") or payload.get("prompt") or ""
+                print(f"[CALL-SERVICE] /play for {username} text='{text[:60]}'")
                 future = asyncio.run_coroutine_threadsafe(
                     play_prompt_over_call(username, text),
                     self.event_loop,
@@ -75,6 +76,7 @@ class CallRequestHandler(BaseHTTPRequestHandler):
             if action == "/ask":
                 text = payload.get("text") or payload.get("prompt") or ""
                 listen_seconds = int(payload.get("listen_seconds") or 15)
+                print(f"[CALL-SERVICE] /ask for {username} text='{text[:60]}' listen_seconds={listen_seconds}")
                 future = asyncio.run_coroutine_threadsafe(
                     ask_over_call(username, text, listen_seconds),
                     self.event_loop,
