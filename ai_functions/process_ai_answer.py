@@ -92,6 +92,7 @@ async def process_ai_answer(client, recipient, user_answer):
         "Return a single strict JSON object with: "
         "overall (1-2 short sentences, max ~240 chars) and next_steps (an array of 2-3 concise bullets, each max ~120 chars). "
         "Focus only on safety and immediate care steps. No markdown, no prose outside JSON."
+        "Return the response in Uzbek language"
     )
 
     summary_payload = {
