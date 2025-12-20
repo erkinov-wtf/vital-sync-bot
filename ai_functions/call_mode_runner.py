@@ -75,6 +75,7 @@ async def run_call_qna(client, recipient, username: Optional[str], listen_second
         return
 
     key = str(getattr(recipient, "user_id", None) or recipient)
+    fail_attempts = 0
 
     while True:
         state = SESSION_STATE.get(key)
@@ -90,13 +91,20 @@ async def run_call_qna(client, recipient, username: Optional[str], listen_second
         transcript, err = await ask_via_call(username, question_text, listen_seconds)
 
         if not transcript:
-            # Ask the same question again after nudging the user.
+            fail_attempts += 1
             try:
                 await client.send_message(recipient, "I couldn't hear you clearly. Please answer again.")
             except Exception:
                 pass
+            if fail_attempts >= 3:
+                try:
+                    await client.send_message(recipient, "I still can't hear you. Please answer here in chat.")
+                except Exception:
+                    pass
+                break
             await asyncio.sleep(1)
             continue
 
+        fail_attempts = 0
         await process_ai_answer(client, recipient, transcript)
         await asyncio.sleep(0.5)

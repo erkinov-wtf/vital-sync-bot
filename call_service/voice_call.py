@@ -90,9 +90,10 @@ def _install_handlers(stack: PyTgCalls):
             _CAPTURE_ACTIVE.discard(update.chat_id)
             _CAPTURE_BUFFERS.pop(update.chat_id, None)
 
-    frame_filter = filters.create(
-        lambda client, u: isinstance(u, StreamFrames) and u.direction == Direction.INCOMING and u.device == Device.MICROPHONE
-    )
+    def frame_filter(self, client: PyTgCalls, u):
+        return isinstance(u, StreamFrames) and u.direction == Direction.INCOMING and u.device == Device.MICROPHONE
+
+    frame_filter = filters.create(frame_filter)
     stack.add_handler(_collect_frames, frame_filter)
     stack.add_handler(_track_call_state)
     _HANDLERS_INSTALLED = True
