@@ -1,15 +1,12 @@
 import asyncio
-import hashlib
-import os
-import random
 import sqlite3
 from pathlib import Path
 from typing import Optional, Tuple
 
 from pyrogram import Client
-from pyrogram.raw import functions, types
 
 from config import API_HASH, API_ID, CALL_SESSION_NAME
+from telegram_calls import make_call
 
 _CALL_CLIENT: Optional[Client] = None
 _CALL_LOCK: Optional[asyncio.Lock] = None
@@ -83,7 +80,7 @@ def _resolve_session_path(name: str) -> Optional[Path]:
         if not valid(path):
             continue
         if not _session_is_logged_in(path):
-            print(f"[CALL] Session file {path} exists but is not logged in. Run `python telegram_calls.py` to create it.")
+            print(f"[CALL] Session file {path} exists but is not logged in. Create or refresh a valid Pyrogram user session.")
             continue
         return path
     return None
@@ -111,7 +108,7 @@ async def _ensure_call_client() -> Optional[Client]:
 
         session_path = _resolve_session_path(CALL_SESSION_NAME or "call.session")
         if not session_path:
-            print("[CALL] No Pyrogram session file ready (set CALL_SESSION_NAME or run `python telegram_calls.py` to log in).")
+            print("[CALL] No Pyrogram session file ready (set CALL_SESSION_NAME to a valid user session path).")
             return None
 
         # Client uses the current running loop; this coroutine must be scheduled on the target loop.
@@ -138,34 +135,11 @@ async def place_voice_call(username: str) -> Tuple[bool, str]:
     handle = username if username.startswith("@") else f"@{username}"
 
     try:
-        user = await client.get_users(handle)
-    except Exception as e:
-        print(f"[CALL] Could not resolve user {handle}: {e}")
-        return False, f"Could not resolve user {handle}: {e}"
-
-    try:
-        random_id = random.randint(1, 2 ** 31 - 1)
-        g_a_hash = hashlib.sha256(os.urandom(256)).digest()
-        protocol = types.PhoneCallProtocol(
-            min_layer=65,
-            max_layer=92,
-            udp_p2p=True,
-            udp_reflector=True,
-            library_versions=["2.4.4"],
-        )
-
-        await client.invoke(
-            functions.phone.RequestCall(
-                user_id=await client.resolve_peer(user.id),
-                random_id=random_id,
-                g_a_hash=g_a_hash,
-                protocol=protocol,
-                video=False,
-            )
-        )
-
-        print(f"[CALL] Outgoing call started to {handle}.")
-        return True, handle
+        call = await make_call(client, handle)
+        if call:
+            print(f"[CALL] Outgoing call started to {handle}.")
+            return True, handle
+        return False, f"Failed to start call to {handle}"
 
     except Exception as e:
         print(f"[CALL] Failed to start call to {handle}: {e}")
