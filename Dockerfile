@@ -19,6 +19,7 @@ COPY . .
 # If bot.session is present in the project root, copy it into the image so no interactive login is needed.
 COPY bot.session /app/bot.session
 ENV SESSION_NAME=/app/bot.session
+COPY interactive_call_session.session /app/interactive_call_session.session
 
 EXPOSE 8081
 

@@ -3,3 +3,4 @@ apidocs.json
 bot.session
 logs
 .env
+interactive_call_session.session
