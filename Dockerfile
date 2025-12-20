@@ -21,6 +21,6 @@ COPY bot.session /app/bot.session
 ENV SESSION_NAME=/app/bot.session
 COPY interactive_call_session.session /app/interactive_call_session.session
 
-EXPOSE 8081
+EXPOSE 8081 8082
 
 CMD ["python", "main.py"]
