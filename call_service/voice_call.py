@@ -13,13 +13,13 @@ from config import API_HASH, API_ID, CALL_SESSION_NAME
 
 _CALL_CLIENT: Optional[Client] = None
 _CALL_LOCK: Optional[asyncio.Lock] = None
-_CALL_LOOP: Optional[asyncio.AbstractEventLoop] = None
 
 
 def set_event_loop(loop: asyncio.AbstractEventLoop):
-    """Bind the call client to a dedicated event loop."""
-    global _CALL_LOOP
-    _CALL_LOOP = loop
+    """
+    No-op kept for backward compatibility; the caller runs us on the intended loop.
+    """
+    return loop
 
 
 def _session_is_logged_in(path: Path) -> bool:
@@ -101,13 +101,9 @@ async def _ensure_call_client() -> Optional[Client]:
     Lazily start a Pyrogram client for voice calls using a pre-authenticated session.
     The session file must already exist; we do not perform interactive login here.
     """
-    global _CALL_CLIENT, _CALL_LOOP
+    global _CALL_CLIENT
     if _CALL_CLIENT:
         return _CALL_CLIENT
-
-    loop = _CALL_LOOP or asyncio.get_running_loop()
-    if _CALL_LOOP is None:
-        _CALL_LOOP = loop
 
     async with _get_lock():
         if _CALL_CLIENT:
@@ -118,7 +114,8 @@ async def _ensure_call_client() -> Optional[Client]:
             print("[CALL] No Pyrogram session file ready (set CALL_SESSION_NAME or run `python telegram_calls.py` to log in).")
             return None
 
-        client = Client(str(session_path), api_id=API_ID, api_hash=API_HASH, loop=_CALL_LOOP)
+        # Client uses the current running loop; this coroutine must be scheduled on the target loop.
+        client = Client(str(session_path), api_id=API_ID, api_hash=API_HASH)
         try:
             await client.start()
             _CALL_CLIENT = client
