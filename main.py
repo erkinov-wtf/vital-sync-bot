@@ -96,9 +96,8 @@ class CheckinTriggerHandler(BaseHTTPRequestHandler):
 
         patient_id = match.group(1)
         params = parse_qs(parsed.query or "")
-        delivery_mode = (params.get("type", ["text"])[0] or "text").lower()
-        if delivery_mode not in ("text", "call"):
-            delivery_mode = "text"
+        # Call mode is not supported in this service; normalize to text always
+        delivery_mode = "text"
 
         if not self.telethon_client or not self.event_loop:
             self._send_json(503, {"error": "Bot client not ready"})

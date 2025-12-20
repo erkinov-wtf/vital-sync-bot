@@ -33,7 +33,8 @@ async def process_ai_answer(client, recipient, user_answer):
 
     checkin_id = session_data.get("checkin_id")
     patient_user_id = session_data.get("patient_user_id")
-    delivery_mode = session_data.get("delivery_mode", "text")
+    # Call mode not supported; keep text delivery
+    delivery_mode = "text"
 
     # 2. Record the answer for the current question
     # This block executes if a question index exists and hasn't exceeded the list length
@@ -224,9 +225,7 @@ async def process_ai_answer(client, recipient, user_answer):
     user_reply += "Holatingiz o'zgarsa yoki yomonlashsa, darhol yozing."
 
     await client.send_message(recipient, user_reply.strip())
-    if (delivery_mode or "").lower() == "call":
-        # Send a voice version of the summary; fall back silently on TTS errors
-        await send_prompt(client, recipient, user_reply.strip(), delivery_mode, send_text_fallback=False)
+    # Call mode removed; text only
 
     # 7. End the session with backend and cleanup
     if patient_user_id:

@@ -8,7 +8,7 @@ from typing import Optional, Tuple
 from gtts import gTTS
 from io import BytesIO
 
-from config import DEEPGRAM_API_KEY
+from config import DEEPGRAM_API_KEY, TTS_LANGUAGE
 from ai_client.deepgram_client import synthesize_speech as deepgram_tts
 
 
@@ -30,7 +30,7 @@ def _gtts_tts(text: str) -> Tuple[Optional[bytes], Optional[str]]:
     Google Translate TTS (no API key). Lightweight fallback.
     """
     try:
-        tts = gTTS(text=text, lang="en")
+        tts = gTTS(text=text, lang=TTS_LANGUAGE or "uz")
         buf = BytesIO()
         tts.write_to_fp(buf)
         return buf.getvalue(), None
