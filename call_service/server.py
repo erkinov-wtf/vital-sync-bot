@@ -15,9 +15,15 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from call_service.voice_call import place_voice_call, set_event_loop, shutdown_call_client
+from call_service.voice_call import (
+    ask_over_call,
+    place_voice_call,
+    play_prompt_over_call,
+    set_event_loop,
+    shutdown_call_client,
+)
 
-USERNAME_PATH_RE = re.compile(r"^/call/@?(?P<username>[A-Za-z0-9_]{3,32})$")
+USERNAME_PATH_RE = re.compile(r"^/call/@?(?P<username>[A-Za-z0-9_]{3,32})(?P<action>/ask|/play)?$")
 
 
 class CallRequestHandler(BaseHTTPRequestHandler):
@@ -37,11 +43,50 @@ class CallRequestHandler(BaseHTTPRequestHandler):
             return
 
         username = match.group("username")
+        action = match.group("action") or ""
+
         if not self.event_loop:
             self._send_json(503, {"error": "Call loop not ready"})
             return
 
+        content_length = int(self.headers.get("Content-Length", "0") or 0)
+        body = self.rfile.read(content_length) if content_length else b""
+        payload = {}
+        if body:
+            try:
+                payload = json.loads(body.decode() or "{}")
+            except Exception:
+                payload = {}
+
         try:
+            if action == "/play":
+                text = payload.get("text") or payload.get("prompt") or ""
+                future = asyncio.run_coroutine_threadsafe(
+                    play_prompt_over_call(username, text),
+                    self.event_loop,
+                )
+                success, detail = future.result(timeout=60)
+                if success:
+                    self._send_json(200, {"ok": True, "username": username})
+                else:
+                    self._send_json(400, {"ok": False, "username": username, "error": detail})
+                return
+
+            if action == "/ask":
+                text = payload.get("text") or payload.get("prompt") or ""
+                listen_seconds = int(payload.get("listen_seconds") or 15)
+                future = asyncio.run_coroutine_threadsafe(
+                    ask_over_call(username, text, listen_seconds),
+                    self.event_loop,
+                )
+                transcript, detail = future.result(timeout=90)
+                if transcript:
+                    self._send_json(200, {"ok": True, "username": username, "transcript": transcript})
+                else:
+                    self._send_json(400, {"ok": False, "username": username, "error": detail or "No transcript"})
+                return
+
+            # Default: start call
             future = asyncio.run_coroutine_threadsafe(
                 place_voice_call(username),
                 self.event_loop,

@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 
 from ai_client.llm_client import generate_ai_chat_response
 from ai_functions.prompt_delivery import send_prompt
+from ai_functions.call_mode_runner import run_call_qna
 from telegram_bot.chat_actions import chat_action
 from api_client.patient_api import (
     add_checkin_questions,
@@ -129,6 +130,7 @@ async def start_ai_session(
     trimmed_checkins = _trim_checkins(prior_checkins or [])
     limited_vitals = (vital_readings or [])[:5]  # cap vitals list if present
     patient_user_id = patient_user_id or patient_data.UserID
+    call_username = getattr(patient_data.User, "TelegramUsername", None)
 
     # System instruction and user payload for question generation
     system_instruction = (
@@ -244,6 +246,8 @@ async def start_ai_session(
         "checkin_id": checkin_id,
         "patient_user_id": patient_user_id,
         "delivery_mode": delivery_mode.lower() if delivery_mode else "text",
+        "call_username": call_username,
+        "call_runner_active": delivery_mode.lower() == "call",
     }
 
     # Send intro (LLM-generated if not provided) and first question
@@ -255,6 +259,9 @@ async def start_ai_session(
         if intro_message:
             await send_prompt(client, recipient, intro_message, delivery_mode)
         await send_prompt(client, recipient, initial_question, delivery_mode)
+        if delivery_mode == "call" and call_username:
+            # Drive the rest of the Q&A over the call without blocking the trigger request.
+            asyncio.create_task(run_call_qna(client, recipient, call_username))
     else:
         await client.send_message(recipient,
                                   "Unable to generate personalized questions for your check-in. Please try again later.")
