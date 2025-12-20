@@ -77,17 +77,9 @@ class CallRequestHandler(BaseHTTPRequestHandler):
             if action == "/ask":
                 text = payload.get("text") or payload.get("prompt") or ""
                 listen_seconds = int(payload.get("listen_seconds") or 15)
-                min_listen = float(payload.get("min_listen") or 1.5)
-                silence_timeout = float(payload.get("silence_timeout") or 1.5)
                 print(f"[CALL-SERVICE] /ask for {username} text='{text[:60]}' listen_seconds={listen_seconds}")
                 future = asyncio.run_coroutine_threadsafe(
-                    ask_over_call(
-                        username,
-                        text,
-                        listen_seconds,
-                        min_listen=min_listen,
-                        silence_timeout=silence_timeout,
-                    ),
+                    ask_over_call(username, text, listen_seconds),
                     self.event_loop,
                 )
                 transcript, detail = future.result(timeout=120)

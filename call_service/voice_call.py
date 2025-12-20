@@ -362,18 +362,10 @@ async def play_prompt_over_call(username: str, text: str) -> Tuple[bool, Optiona
         return False, str(e)
 
 
-async def capture_answer_over_call(
-    username: str,
-    max_listen: int = 15,
-    *,
-    min_listen: float = 1.5,
-    silence_timeout: float = 1.5,
-) -> Tuple[Optional[str], Optional[str]]:
+async def capture_answer_over_call(username: str, listen_seconds: int = 15) -> Tuple[Optional[str], Optional[str]]:
     """
-    Capture incoming audio from the ongoing call and transcribe it.
-    Stops when either:
-      - max_listen seconds elapsed, or
-      - after min_listen seconds and no new audio for silence_timeout seconds.
+    Capture incoming audio from the ongoing call for a brief window and transcribe it
+    using the same STT pipeline used for voice notes.
     """
     client, stack = await _ensure_call_stack()
     if not client or not stack:
@@ -391,31 +383,11 @@ async def capture_answer_over_call(
 
     await _ensure_recording(chat_id, stack)
 
-    print(f"[CALL] Starting capture window for {chat_id} (max_listen={max_listen}, min_listen={min_listen}, silence_timeout={silence_timeout})")
+    print(f"[CALL] Starting capture window for {chat_id} (listen_seconds={listen_seconds})")
     _CAPTURE_BUFFERS[chat_id] = []
     _CAPTURE_ACTIVE.add(chat_id)
-    start = asyncio.get_event_loop().time()
-    last_audio = start
-    last_len = 0
-
     try:
-        while True:
-            await asyncio.sleep(0.3)
-            buf = _CAPTURE_BUFFERS.get(chat_id, [])
-            cur_len = sum(len(b) for b in buf)
-            now = asyncio.get_event_loop().time()
-
-            if cur_len > last_len:
-                last_audio = now
-                last_len = cur_len
-
-            elapsed = now - start
-            silence = now - last_audio
-
-            if elapsed >= max_listen:
-                break
-            if cur_len > 0 and elapsed >= min_listen and silence >= silence_timeout:
-                break
+        await asyncio.sleep(max(1, listen_seconds))
     finally:
         _CAPTURE_ACTIVE.discard(chat_id)
 
@@ -431,13 +403,7 @@ async def capture_answer_over_call(
     return transcript, stt_err
 
 
-async def ask_over_call(
-    username: str,
-    text: str,
-    listen_seconds: int = 15,
-    min_listen: float = 1.5,
-    silence_timeout: float = 1.5,
-) -> Tuple[Optional[str], Optional[str]]:
+async def ask_over_call(username: str, text: str, listen_seconds: int = 15) -> Tuple[Optional[str], Optional[str]]:
     """
     Ensure call is active, then listen and transcribe the response.
     """
@@ -446,9 +412,4 @@ async def ask_over_call(
     if not ok:
         return None, err
 
-    return await capture_answer_over_call(
-        username,
-        max_listen=listen_seconds,
-        min_listen=min_listen,
-        silence_timeout=silence_timeout,
-    )
+    return await capture_answer_over_call(username, listen_seconds)
