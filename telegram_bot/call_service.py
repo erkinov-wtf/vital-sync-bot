@@ -17,13 +17,20 @@ _CALL_LOCK = asyncio.Lock()
 def _resolve_session_path(name: str) -> Optional[Path]:
     """
     Try multiple common session filenames so call flow works out-of-the-box.
+    Only returns a path that exists and is non-empty to avoid interactive prompts.
     """
+    def valid(p: Path) -> bool:
+        return p.exists() and p.is_file() and p.stat().st_size > 0
+
     candidates = []
     if name:
         base = Path(name)
-        candidates.append(base)
-        if base.suffix != ".session":
-            candidates.append(base.with_suffix(".session"))
+        if base.is_absolute():
+            candidates.append(base)
+        else:
+            candidates.append(base)
+            if base.suffix != ".session":
+                candidates.append(base.with_suffix(".session"))
 
     # Fallbacks that match the interactive login helper and common defaults
     candidates.extend(
@@ -31,11 +38,15 @@ def _resolve_session_path(name: str) -> Optional[Path]:
             Path("interactive_call_session"),
             Path("interactive_call_session.session"),
             Path("call.session"),
+            Path("/home/bot/interactive_call_session.session"),
+            Path("/home/bot/call.session"),
+            Path("/app/interactive_call_session.session"),
+            Path("/app/call.session"),
         ]
     )
 
     for path in candidates:
-        if path.exists():
+        if valid(path):
             return path
     return None
 
