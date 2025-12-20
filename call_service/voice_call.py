@@ -17,7 +17,7 @@ if not hasattr(py_errors, "GroupcallForbidden"):
     py_errors.GroupcallForbidden = GroupcallForbidden
 
 from pytgcalls import PyTgCalls, filters
-from pytgcalls.types import CallConfig, Direction, Device, StreamFrames, ChatUpdate
+from pytgcalls.types import CallConfig, Direction, Device, StreamFrames, ChatUpdate, RecordStream
 
 from ai_client.stt_client import transcribe_audio_bytes
 from ai_client.tts_client import synthesize_speech
@@ -231,6 +231,17 @@ async def _ensure_call_stack() -> Tuple[Optional[Client], Optional[PyTgCalls]]:
     return client, _CALL_STACK
 
 
+async def _ensure_recording(chat_id: int, stack: PyTgCalls):
+    """
+    Enable playback recording so incoming audio frames are emitted.
+    """
+    try:
+        await stack.record(chat_id, stream=RecordStream(audio=True))
+        print(f"[CALL] Recording enabled for call {chat_id}")
+    except Exception as e:
+        print(f"[CALL] Failed to enable recording for {chat_id}: {e}")
+
+
 async def _resolve_chat_id(client: Client, handle: str) -> Optional[int]:
     try:
         user = await client.get_users(handle)
@@ -335,6 +346,7 @@ async def play_prompt_over_call(username: str, text: str) -> Tuple[bool, Optiona
     try:
         print(f"[CALL] Playing prompt over call {chat_id}: '{text[:60]}'...")
         await _play_audio(chat_id, audio_bytes, stack)
+        await _ensure_recording(chat_id, stack)
         return True, None
     except Exception as e:
         return False, str(e)
@@ -359,6 +371,8 @@ async def capture_answer_over_call(username: str, listen_seconds: int = 15) -> T
         if not ok:
             return None, err or "Failed to start call."
 
+    await _ensure_recording(chat_id, stack)
+
     print(f"[CALL] Starting capture window for {chat_id} (listen_seconds={listen_seconds})")
     _CAPTURE_BUFFERS[chat_id] = []
     _CAPTURE_ACTIVE.add(chat_id)
@@ -369,6 +383,7 @@ async def capture_answer_over_call(username: str, listen_seconds: int = 15) -> T
 
     pcm = b"".join(_CAPTURE_BUFFERS.pop(chat_id, []))
     if not pcm:
+        print(f"[CALL] No audio captured from call {chat_id}")
         return None, "No audio captured from call."
 
     wav_bytes = _pcm_to_wav_bytes(pcm)
