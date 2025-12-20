@@ -52,10 +52,12 @@ def _resolve_session_path(name: str) -> Optional[Path]:
     candidates = []
     if name:
         base = Path(name)
+        # Pyrogram always appends ".session" to the provided name, even if it already ends with one.
+        # Check both the raw name and the double-suffix variant so we can pick up prebuilt sessions.
         if base.is_absolute():
-            candidates.append(base)
+            candidates.extend([base, Path(f"{base}.session")])
         else:
-            candidates.append(base)
+            candidates.extend([base, Path(f"{base}.session")])
             if base.suffix != ".session":
                 candidates.append(base.with_suffix(".session"))
 
@@ -64,10 +66,13 @@ def _resolve_session_path(name: str) -> Optional[Path]:
         [
             Path("interactive_call_session"),
             Path("interactive_call_session.session"),
+            Path("interactive_call_session.session.session"),
             Path("call.session"),
             Path("/home/bot/interactive_call_session.session"),
+            Path("/home/bot/interactive_call_session.session.session"),
             Path("/home/bot/call.session"),
             Path("/app/interactive_call_session.session"),
+            Path("/app/interactive_call_session.session.session"),
             Path("/app/call.session"),
         ]
     )
@@ -108,7 +113,8 @@ async def _ensure_call_client() -> Optional[Client]:
 
         session_path = _resolve_session_path(CALL_SESSION_NAME or "call.session")
         if not session_path:
-            print("[CALL] No Pyrogram session file ready (set CALL_SESSION_NAME to a valid user session path).")
+            print(f"[CALL] No Pyrogram session file ready (checked name '{CALL_SESSION_NAME or 'call.session'}'). "
+                  "Set CALL_SESSION_NAME to a valid Pyrogram user session path and ensure it is mounted.")
             return None
 
         # Client uses the current running loop; this coroutine must be scheduled on the target loop.
