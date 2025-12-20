@@ -39,7 +39,7 @@ async def play_prompt_via_call(username: str, text: str) -> Tuple[bool, Optional
     return False, data.get("error") or f"Call-service returned {resp.status_code}"
 
 
-async def ask_via_call(username: str, text: str, listen_seconds: int = 10) -> Tuple[Optional[str], Optional[str]]:
+async def ask_via_call(username: str, text: str, listen_seconds: int = 15) -> Tuple[Optional[str], Optional[str]]:
     """
     Play the prompt and capture the spoken response through the call-service.
     Returns (transcript, error).
@@ -50,7 +50,12 @@ async def ask_via_call(username: str, text: str, listen_seconds: int = 10) -> Tu
     def _post():
         return requests.post(
             _endpoint(username, "ask"),
-            json={"text": text, "listen_seconds": listen_seconds},
+            json={
+                "text": text,
+                "listen_seconds": listen_seconds,
+                "min_listen": 1.5,
+                "silence_timeout": 1.5,
+            },
             timeout=listen_seconds + 90,
         )
 
@@ -65,7 +70,7 @@ async def ask_via_call(username: str, text: str, listen_seconds: int = 10) -> Tu
     return None, data.get("error") or f"Call-service returned {resp.status_code}"
 
 
-async def run_call_qna(client, recipient, username: Optional[str], listen_seconds: int = 7):
+async def run_call_qna(client, recipient, username: Optional[str], listen_seconds: int = 15):
     """
     Drive the Q&A loop over an active call by repeatedly asking questions via
     the call-service and feeding transcripts into the existing process_ai_answer flow.
