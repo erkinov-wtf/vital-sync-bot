@@ -19,6 +19,8 @@ if not hasattr(py_errors, "GroupcallForbidden"):
 
 from pytgcalls import PyTgCalls
 from pytgcalls.types import CallConfig, Direction, Device, StreamFrames, ChatUpdate, RecordStream
+from pytgcalls.types.raw import Stream as RawStream, AudioStream as RawAudioStream, AudioParameters as RawAudioParameters
+from ntgcalls import MediaSource
 
 from ai_client.stt_client import transcribe_audio_bytes
 from ai_client.tts_client import synthesize_speech
@@ -259,8 +261,15 @@ async def _play_audio(chat_id: int, audio_bytes: bytes, stack: PyTgCalls) -> Non
     transcoded = None
     try:
         transcoded = _transcode_to_48k_wav(tmp_path)
-        print(f"[CALL] Streaming {len(audio_bytes)} bytes of TTS audio to call {chat_id} (file={transcoded})")
-        await stack.play(chat_id, stream=transcoded, config=CallConfig(timeout=60))
+        stream = RawStream(
+            microphone=RawAudioStream(
+                media_source=MediaSource.FILE,
+                path=transcoded,
+                parameters=RawAudioParameters(bitrate=48000, channels=1),
+            )
+        )
+        print(f"[CALL] Streaming {len(audio_bytes)} bytes of TTS audio to call {chat_id} (file={transcoded}, mode=FILE)")
+        await stack.play(chat_id, stream=stream, config=CallConfig(timeout=60))
         print(f"[CALL] Finished streaming audio to call {chat_id}")
     finally:
         Path(tmp_path).unlink(missing_ok=True)
