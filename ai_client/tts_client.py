@@ -1,18 +1,29 @@
 # ai_client/tts_client.py
 """
-Simple TTS placeholder. Currently only supports Deepgram Aura when configured.
-gTTS has been removed; if no backend is configured, TTS is disabled.
+Simple TTS client using the local STT/TTS service at STT_API_URL (/tts endpoint).
+Returns WAV bytes or an error message.
 """
 from typing import Optional, Tuple
 
-from config import DEEPGRAM_API_KEY
-from ai_client.deepgram_client import synthesize_speech as deepgram_tts
+import requests
+
+from config import STT_API_URL
 
 
 def synthesize_speech(text: str) -> Tuple[Optional[bytes], Optional[str]]:
     """
-    Use Deepgram TTS when configured. Otherwise, TTS is disabled.
+    Call POST /tts on the local STT service to synthesize Uzbek speech.
     """
-    if DEEPGRAM_API_KEY:
-        return deepgram_tts(text)
-    return None, "TTS is disabled (no backend configured)."
+    if not STT_API_URL:
+        return None, "TTS is disabled (STT_API_URL not configured)."
+    text = (text or "").strip()
+    if not text:
+        return None, "TTS text is empty."
+
+    url = STT_API_URL.rstrip("/") + "/tts"
+    try:
+        resp = requests.post(url, json={"text": text}, timeout=30)
+        resp.raise_for_status()
+        return resp.content, None
+    except requests.exceptions.RequestException as e:
+        return None, f"TTS request failed: {e}"

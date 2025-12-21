@@ -20,6 +20,7 @@ from pytgcalls import PyTgCalls
 from pytgcalls.types import CallConfig, Direction, Device, StreamFrames, ChatUpdate, RecordStream
 
 from ai_client.stt_client import transcribe_audio_bytes
+from ai_client.tts_client import synthesize_speech
 from config import API_HASH, API_ID, CALL_SESSION_NAME
 
 _CALL_CLIENT: Optional[Client] = None
@@ -338,7 +339,7 @@ async def end_voice_call(username: str) -> Tuple[bool, str]:
 
 async def play_prompt_over_call(username: str, text: str) -> Tuple[bool, Optional[str]]:
     """
-    Placeholder: ensure call is active. Audio playback is skipped (TTS disabled).
+    Convert text to speech and stream it into the active call with the user.
     """
     client, stack = await _ensure_call_stack()
     if not client or not stack:
@@ -353,9 +354,16 @@ async def play_prompt_over_call(username: str, text: str) -> Tuple[bool, Optiona
     if not ok:
         return False, err_detail or "Failed to ensure active call."
 
+    audio_bytes, tts_err = synthesize_speech(text)
+    if not audio_bytes:
+        print(f"[CALL] TTS failed for prompt '{text[:40]}': {tts_err}")
+        return False, tts_err or "TTS failed."
+
     try:
+        print(f"[CALL] Playing prompt over call {chat_id}: '{text[:60]}'...")
+        await _play_audio(chat_id, audio_bytes, stack)
         await _ensure_recording(chat_id, stack)
-        print(f"[CALL] Call active for {chat_id}; skipping audio playback (TTS disabled).")
+        print(f"[CALL] Prompt playback finished for {chat_id}.")
         return True, None
     except Exception as e:
         print(f"[CALL] Failed to play prompt over call {chat_id}: {e}")
