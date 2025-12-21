@@ -84,8 +84,6 @@ def _install_handlers(stack: PyTgCalls):
                 if data:
                     buf.append(data)
                     added += len(data)
-            if added:
-                print(f"[CALL] Collected {added} bytes from call {update.chat_id} (device={update.device.name})")
         except Exception as e:
             print(f"[CALL] Failed to collect frames: {e}")
 
@@ -251,12 +249,14 @@ async def _play_audio(chat_id: int, audio_bytes: bytes, stack: PyTgCalls) -> Non
     """
     Play the provided audio bytes into the ongoing call as an outgoing stream.
     """
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
     tmp.write(audio_bytes)
     tmp.flush()
     tmp.close()
     try:
+        print(f"[CALL] Streaming {len(audio_bytes)} bytes of TTS audio to call {chat_id}")
         await stack.play(chat_id, stream=tmp.name, config=CallConfig(timeout=60))
+        print(f"[CALL] Finished streaming audio to call {chat_id}")
     finally:
         Path(tmp.name).unlink(missing_ok=True)
 
