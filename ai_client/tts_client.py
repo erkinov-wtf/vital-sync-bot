@@ -22,7 +22,12 @@ def synthesize_speech(text: str) -> Tuple[Optional[bytes], Optional[str]]:
 
     url = STT_API_URL.rstrip("/") + "/tts"
     try:
-        resp = requests.post(url, json={"text": text}, timeout=30)
+        resp = requests.post(
+            url,
+            json={"text": text},
+            headers={"Accept": "audio/wav", "Content-Type": "application/json"},
+            timeout=30,
+        )
         resp.raise_for_status()
         return resp.content, None
     except requests.exceptions.RequestException as e:

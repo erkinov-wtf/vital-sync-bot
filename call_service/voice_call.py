@@ -363,6 +363,10 @@ async def play_prompt_over_call(username: str, text: str) -> Tuple[bool, Optiona
         print(f"[CALL] Playing prompt over call {chat_id}: '{text[:60]}'...")
         await _play_audio(chat_id, audio_bytes, stack)
         await _ensure_recording(chat_id, stack)
+        try:
+            await stack.unmute(chat_id)
+        except Exception:
+            pass
         print(f"[CALL] Prompt playback finished for {chat_id}.")
         return True, None
     except Exception as e:
