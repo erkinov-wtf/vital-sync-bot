@@ -39,6 +39,11 @@ async def play_prompt_via_call(username: str, text: str) -> Tuple[bool, Optional
     return False, data.get("error") or f"Call-service returned {resp.status_code}"
 
 
+def _dynamic_listen_seconds(text: str, base: int = 7, per_char: float = 0.05, min_sec: int = 7, max_sec: int = 20) -> int:
+    est = base + int(len(text) * per_char)
+    return max(min_sec, min(max_sec, est))
+
+
 async def ask_via_call(username: str, text: str, listen_seconds: int = 10) -> Tuple[Optional[str], Optional[str]]:
     """
     Play the prompt and capture the spoken response through the call-service.
@@ -46,6 +51,8 @@ async def ask_via_call(username: str, text: str, listen_seconds: int = 10) -> Tu
     """
     if not username or not text:
         return None, "Missing username or prompt."
+
+    listen_seconds = _dynamic_listen_seconds(text, base=7, per_char=0.04, min_sec=7, max_sec=20)
 
     def _post():
         return requests.post(
