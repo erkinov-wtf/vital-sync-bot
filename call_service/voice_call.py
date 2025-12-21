@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import io
 import sqlite3
+import subprocess
 import tempfile
 import wave
 from pathlib import Path
@@ -249,16 +250,22 @@ async def _play_audio(chat_id: int, audio_bytes: bytes, stack: PyTgCalls) -> Non
     """
     Play the provided audio bytes into the ongoing call as an outgoing stream.
     """
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-    tmp.write(audio_bytes)
-    tmp.flush()
-    tmp.close()
+    tmp_in = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+    tmp_in.write(audio_bytes)
+    tmp_in.flush()
+    tmp_in.close()
+
+    tmp_path = tmp_in.name
+    transcoded = None
     try:
-        print(f"[CALL] Streaming {len(audio_bytes)} bytes of TTS audio to call {chat_id}")
-        await stack.play(chat_id, stream=tmp.name, config=CallConfig(timeout=60))
+        transcoded = _transcode_to_48k_wav(tmp_path)
+        print(f"[CALL] Streaming {len(audio_bytes)} bytes of TTS audio to call {chat_id} (file={transcoded})")
+        await stack.play(chat_id, stream=transcoded, config=CallConfig(timeout=60))
         print(f"[CALL] Finished streaming audio to call {chat_id}")
     finally:
-        Path(tmp.name).unlink(missing_ok=True)
+        Path(tmp_path).unlink(missing_ok=True)
+        if transcoded:
+            Path(transcoded).unlink(missing_ok=True)
 
 
 def _pcm_to_wav_bytes(pcm: bytes, sample_rate: int = 48000) -> bytes:
@@ -269,6 +276,34 @@ def _pcm_to_wav_bytes(pcm: bytes, sample_rate: int = 48000) -> bytes:
         wf.setframerate(sample_rate)
         wf.writeframes(pcm)
     return buf.getvalue()
+
+
+def _transcode_to_48k_wav(path: str) -> str:
+    """
+    Convert an input audio file to 48kHz mono WAV using ffmpeg.
+    Returns the path to the transcoded file.
+    """
+    out_fd, out_path = tempfile.mkstemp(prefix="tts_transcoded_", suffix=".wav")
+    Path(out_path).chmod(0o644)
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i",
+        path,
+        "-ac",
+        "1",
+        "-ar",
+        "48000",
+        "-f",
+        "wav",
+        out_path,
+    ]
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if proc.returncode != 0:
+        Path(out_path).unlink(missing_ok=True)
+        raise RuntimeError(f"ffmpeg transcode failed: {proc.stderr.decode(errors='ignore')[:200]}")
+    print(f"[CALL] Transcoded TTS audio to 48k mono WAV: {out_path}")
+    return out_path
 
 
 async def place_voice_call(username: str) -> Tuple[bool, str]:
